@@ -11,6 +11,6 @@ Pkg.add("Metis")
 ```julia
 using Graphs, Metis
 ## if A is a sparse Hermitian matrix
-perm, iperm = NodeND(sparse2adjacencylist(A)) 
+perm, iperm = nodeND(sparse2adjacencylist(A)) 
 ## returns a fill-reducing permutation and its inverse
 ```
