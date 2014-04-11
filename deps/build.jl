@@ -2,20 +2,30 @@ using BinDeps
 
 @BinDeps.setup
 
-deps = [
-        metis = library_dependency("metis", aliases=["libmetis","libmetis5"])
-        ]
+libmetis = library_dependency("libmetis", aliases=["libmetis5"])
 
-#provides(AptGet,"libmetis5",metis)
+#provides(AptGet,"libmetis5",libmetis)
+#provides(Yum,"metis-5.1.0",libmetis)
 
+provides(Sources,
+         URI("http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz"),
+         libmetis)
 
-# version of metis package to use
-const metisver = "5.1.0"
-const metisdir = string("metis-", metisver)
-const metisdownload = string(metisdir, ".tar.gz")
-const metisurl = string("http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/", metisdownload)
-provides(Sources,URI(metisurl),metis)
+metisbuilddir = BinDeps.builddir(libmetis)
+println(libmetis)
+println(libdir(libmetis))
+println(metisbuilddir)
 
+provides(BuildProcess,
+	(@build_steps begin
+            println("In buildsteps")
+	    GetSources(libmetis)
+	    println("past GetSources")
+	    CreateDirectory(metisbuilddir)
+            println("past CreateDirectory")
+	    @build_steps begin
+		ChangeDirectory(metisbuilddir)
+	    end
+	end),libmetis)
 
-@BinDeps.install [:metis => :_jl_metis]
-
+@BinDeps.install
