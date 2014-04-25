@@ -2,33 +2,30 @@ using BinDeps
 
 @BinDeps.setup
 
-libmetis = library_dependency("libmetis", aliases=["libmetis5"])
+metis = library_dependency("libmetis", aliases=["libmetis5"])
 
-provides(AptGet,"libmetis-dev",libmetis)
-provides(Yum,"metis-5.1.0",libmetis)
+@windows_only begin
+  using WinRPM
+  provides(WinRPM.RPM, "metis", metis, os = :Windows )
+end
 
-@BinDeps.load_dependencies
+@osx_only begin
+  using Homebrew
+  provides( Homebrew.HB, "metis", metis, os = :Darwin )
+end
 
-provides(Sources,
-         URI("http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz"),
-         libmetis,
-         unpacked_dir="metis-5.1.0")
+provides( AptGet, "libmetis5", metis )
+provides( Yum, "metis-5.1.0", metis )
 
-metisbuilddir = BinDeps.builddir(libmetis)
-#println(libmetis)
-#println(libdir(libmetis))
-#println(metisbuilddir)
+julia_usrdir = normpath(JULIA_HOME*"/../") # This is a stopgap
+libdirs = String["$(julia_usrdir)/lib"]
+includedirs = String["$(julia_usrdir)/include"]
 
-provides(BuildProcess,
-	(@build_steps begin
-#            println("In buildsteps")
-	    GetSources(libmetis)
-#	    println("past GetSources")
-	    CreateDirectory(metisbuilddir)
-#            println("past CreateDirectory")
-	    @build_steps begin
-		ChangeDirectory(metisbuilddir)
-	    end
-	end),libmetis)
+provides( Sources, URI("http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz"), metis )
+## provides( BuildProcess,
+##           Autotools(lib_dirs = libdirs,
+##                     include_dirs = includedirs,
+##                     configure_options = ["--shared=1"]),
+##           metis )
 
-@BinDeps.install
+@BinDeps.install [:metis => :metis]

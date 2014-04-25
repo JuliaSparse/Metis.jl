@@ -6,9 +6,9 @@
 Pkg.add("Metis")
 ```
 
-Adding the package will download, configure and install metis-5.1.0 in the directory
+On systems without a pre-packaged Metis library, adding this package will download, configure and install metis-5.1.0 in the directory
 ```julia
-joinpath(Pkg.dir(), "Metis", "deps")
+Pkg.dir("Metis", "deps")
 ```
 Configuration requires Cmake version 2.8 or later.  At present the build is only available on Linux/Unix.  Contributions of build stanzas for Windows or OS X are welcome.
 
@@ -18,7 +18,11 @@ The names of the available Julia functions are those from the Metis API
 
 `nodeND(al)`
 : create a fill-reducing permutation from the adjacency list, `al`, of a symmetric sparse matrix
-`partGraphKWay(al, nparts::Integer)`
+`nodeND(m)`
+: create a fill-reducing permutation from a symmetric sparse matrix, `m`.
+`nodeND!(m)`
+: mutating version of `nodeND`
+`partGraphKway(al, nparts::Integer)`
 : partition a graph given as an adjacency list, `al`, into nparts 
 `partGraphRecursive(al, nparts::Integer)`
 : partition a graph given as an adjacency list, `al`, into nparts 
@@ -38,17 +42,8 @@ mdual
 using Graphs, Metis
 copter2 = Metis.testgraph("copter2");
 perm, iperm = nodeND(copter2)
-objval, part = partGraphKWay(copter2, 6)
+objval, part = partGraphKway(copter2, 6)
 counts = zeros(Int, 6);
 for p in part counts[p] += 1 end
 println(counts)
-```
-
-## Obtaining a fill-reducing permutation for a sparse matrix
-
-The function sparse2adjacencylist in the Graphs package creates and adjacency list representation of the pattern of a `SparseMatrixCSC` object.  To be used with nodeND the original sparse matrix must be Hermitian.
-```julia
-## if A is a sparse Hermitian matrix
-perm, iperm = nodeND(sparse2adjacencylist(A)) 
-## returns a fill-reducing permutation and its inverse
 ```

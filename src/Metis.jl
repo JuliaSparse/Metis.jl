@@ -4,17 +4,20 @@
 ## The library should be compiled with IDXTYPEWIDTH = 32 (the default)
 
 module Metis
-    using Graphs
+    include("../deps/deps.jl")          # load library
+
+    using Graphs                        # for AdjacencyList types
 
     export
-        nodeND,
+        nodeND,                         # determine fill-reducing permutation
+        nodeND!,                        # mutating version
         partGraphKway,
         partGraphRecursive
 
     include("metis_h.jl")
 
     const metis_options = -ones(Int32, METIS_NOPTIONS) # defaults indicated by -1
-    metis_options[METIS_OPTION_NUMBERING] = int32(1)   # 1-based numbering of vertices
+    metis_options[METIS_OPTION_NUMBERING] = 1 # 1-based numbering of vertices
 
     ## Create the 1-based CSR representation of the adjacency list
     function mkadj{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
@@ -23,6 +26,35 @@ module Metis
         length(al.adjlist), int32(cumsum(vcat(1, map(length, al.adjlist)))), int32(vcat(al.adjlist...))
     end
         
+    function nodeND!{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer)
+                                        # check symmetry of structure
+        nz = m.nzval                    # nzval made uniform
+        @inbounds for i in 1:length(nz)
+            nz[i] = one(Tv)
+        end
+        issym(m) || ishermitian(m) || error("m must be symmetric or Hermitian")
+                                        # drop diagonal elements
+        Base.SparseMatrix.fkeep!(m,(i,j,x,other) -> i != j, None)
+        metis_options[METIS_OPTION_DBGLVL] = verbose
+        n = convert(Cint, m.n)
+        perm = Array(Cint, n)
+        iperm = Array(Cint, n)
+        err = ccall((:METIS_NodeND,:libmetis), Cint,
+                    (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
+                     Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
+                    &n, tt.colptr, tt.rowval, C_NULL, metis_options, perm, iperm)
+        err == METIS_OK || error("METIS_NodeND returned error code $err")
+        perm, iperm
+    end
+
+    nodeND{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer) = nodeND!(copy(m),verbose)
+
+    nodeND!{Tv}(m::SparseMatrixCSC{Tv,Cint}) = nodeND!(m,0) # default to no output
+
+    nodeND{Tv}(m::SparseMatrixCSC{Tv,Cint}) = nodeND!(copy(m))
+
+    nodeND{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti}) = nodeND(convert(SparseMatrix{Tv,Cint},m))
+
     function nodeND{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
         n, xadj, adjncy = mkadj(al)
         perm = Array(Int32, n)
@@ -47,7 +79,7 @@ module Metis
                     &int32(n), &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &int32(nparts),
                     C_NULL, C_NULL, metis_options, objval, part)
         if (err != METIS_OK) error("METIS_PartGraphKWay returned error code $err") end
-        objval, part
+        objval[1], part
     end
 
     function partGraphRecursive{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}},
@@ -62,11 +94,11 @@ module Metis
                     &int32(n), &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &int32(nparts),
                     C_NULL, C_NULL, metis_options, objval, part)
         if (err != METIS_OK) error("METIS_PartGraphKWay returned error code $err") end
-        objval, part
+        objval[1], part
     end
 
     function testgraph(nm::ASCIIString)
-        pathnm = joinpath(Pkg.dir(), "Metis", "deps", "metis-5.1.0", "graphs", string(nm, ".graph"))
+        pathnm = Pkg.dir("Metis", "graphs", string(nm, ".graph"))
         ff = open(pathnm, "r")
         nvert, nedge = map(int, split(readline(ff)))
         adjlist = Array(Vector{Int32}, nvert)
