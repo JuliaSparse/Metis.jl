@@ -42,7 +42,7 @@ module Metis
         err = ccall((:METIS_NodeND,:libmetis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
                      Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
-                    &n, tt.colptr, tt.rowval, C_NULL, metis_options, perm, iperm)
+                    &n, m.colptr, m.rowval, C_NULL, metis_options, perm, iperm)
         err == METIS_OK || error("METIS_NodeND returned error code $err")
         perm, iperm
     end
