@@ -39,7 +39,7 @@ module Metis
         n = convert(Cint, m.n)
         perm = Array(Cint, n)
         iperm = Array(Cint, n)
-        err = ccall((:METIS_NodeND,:libmetis), Cint,
+        err = ccall((:METIS_NodeND,metis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
                      Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
                     &n, m.colptr, m.rowval, C_NULL, metis_options, perm, iperm)
@@ -53,13 +53,13 @@ module Metis
 
     nodeND{Tv}(m::SparseMatrixCSC{Tv,Cint}) = nodeND!(copy(m))
 
-    nodeND{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti}) = nodeND(convert(SparseMatrix{Tv,Cint},m))
+    nodeND{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti}) = nodeND!(convert(SparseMatrixCSC{Tv,Cint},m))
 
     function nodeND{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
         n, xadj, adjncy = mkadj(al)
         perm = Array(Int32, n)
         iperm = Array(Int32, n)
-        err = ccall((:METIS_NodeND,:libmetis), Int32,
+        err = ccall((:METIS_NodeND,metis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}),
                     &int32(n), xadj, adjncy, C_NULL, metis_options, perm, iperm)
@@ -72,7 +72,7 @@ module Metis
         n, xadj, adjncy = mkadj(al)
         part = Array(Int32, n)
         objval = zeros(Int32, 1)
-        err = ccall((:METIS_PartGraphKway,:libmetis), Int32,
+        err = ccall((:METIS_PartGraphKway,metis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}),
@@ -87,7 +87,7 @@ module Metis
         n, xadj, adjncy = mkadj(al)
         part = Array(Int32, n)
         objval = zeros(Int32, 1)
-        err = ccall((:METIS_PartGraphKway,:libmetis), Int32,
+        err = ccall((:METIS_PartGraphKway,metis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}),
