@@ -21,8 +21,8 @@ module Metis
 
     ## Create the 1-based CSR representation of the adjacency list
     function mkadj{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
-        if is_directed(al) error("Metis functions require undirected graphs") end
-        if first(al.vertices) != 1 error("Vertices must be numbered from 1") end
+        !is_directed(al) || error("Metis functions require undirected graphs")
+        first(al.vertices) == 1 || error("Vertices must be numbered from 1")
         length(al.adjlist), int32(cumsum(vcat(1, map(length, al.adjlist)))), int32(vcat(al.adjlist...))
     end
         
@@ -39,7 +39,7 @@ module Metis
         n = convert(Cint, m.n)
         perm = Array(Cint, n)
         iperm = Array(Cint, n)
-        err = ccall((:METIS_NodeND,metis), Cint,
+        err = ccall((:METIS_NodeND,libmetis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
                      Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
                     &n, m.colptr, m.rowval, C_NULL, metis_options, perm, iperm)
@@ -59,7 +59,7 @@ module Metis
         n, xadj, adjncy = mkadj(al)
         perm = Array(Int32, n)
         iperm = Array(Int32, n)
-        err = ccall((:METIS_NodeND,metis), Int32,
+        err = ccall((:METIS_NodeND,libmetis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}),
                     &int32(n), xadj, adjncy, C_NULL, metis_options, perm, iperm)
@@ -72,7 +72,7 @@ module Metis
         n, xadj, adjncy = mkadj(al)
         part = Array(Int32, n)
         objval = zeros(Int32, 1)
-        err = ccall((:METIS_PartGraphKway,metis), Int32,
+        err = ccall((:METIS_PartGraphKway,libmetis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}),
@@ -87,7 +87,7 @@ module Metis
         n, xadj, adjncy = mkadj(al)
         part = Array(Int32, n)
         objval = zeros(Int32, 1)
-        err = ccall((:METIS_PartGraphKway,metis), Int32,
+        err = ccall((:METIS_PartGraphKway,libmetis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}),

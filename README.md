@@ -1,5 +1,9 @@
 #  [Julia](http://julialang.org) interface to the Metis graph-partitioning algorithms
 
+[![Build Status](https://travis-ci.org/dmbates/Metis.jl.svg?branch=master)](https://travis-ci.org/dmbates/Metis.jl)
+[![Coverage Status](https://coveralls.io/repos/dmbates/Metis.jl/badge.png?branch=master)](https://coveralls.io/r/dmbates/Metis.jl?branch=master)
+[![Package Evaluator](http://iainnz.github.io/packages.julialang.org/badges/Metis_0.3.svg)](http://iainnz.github.io/packages.julialang.org/?pkg=Metis&ver=0.3)
+
 ## Installation
 
 ```julia
@@ -31,12 +35,12 @@ The names of the available Julia functions are those from the Metis API
 
 The function `Metis.testgraph` can be used to read one of the sample graphs available in the `graphs` directory of `metis-5.1.0`.  These graphs correspond to 2D and 3D finite element meshes.
 
-4elt
-: a smaller sample graph (15606 vertices, 45878 edges)
-copter2 
-: a medium size sample graph (55476 vertices, 352238 edges)
-mdual
-: a larger sample graph (258569 vertices, 513132 edges)
+`4elt`
+	: a smaller sample graph (15606 vertices, 45878 edges)
+`copter2` 
+	: a medium size sample graph (55476 vertices, 352238 edges)
+`mdual`
+	: a larger sample graph (258569 vertices, 513132 edges)
 
 ```julia
 using Graphs, Metis
