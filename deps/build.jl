@@ -24,18 +24,17 @@ provides(Sources, URI("http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1
 
 metisname = "metis-5.1.0"
 
-libdir = BinDeps.libdir(libmetis)
-downloadsdir = BinDeps.downloadsdir(libmetis)
-builddir = BinDeps.builddir(libmetis)
+depsdir = BinDeps.depsdir(libmetis)
+prefix = joinpath(depsdir,"usr")
+srcdir = joinpath(depsdir,"src",metisname)
 
 provides(SimpleBuild,
          (@build_steps begin
              GetSources(libmetis)
-             CreateDirectory(builddir)
              (@build_steps begin
-	         ChangeDirectory(builddir)
+	         ChangeDirectory(srcdir)
 	         (@build_steps begin
-	             `make config shared=1 prefix=$libdir/..`
+	             `make config shared=1 prefix=$prefix`
 	             `make`
 	             `make install`
                  end)
