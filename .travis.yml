@@ -14,7 +14,7 @@ before_install:
   - sudo apt-get install libpcre3-dev julia -y
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
 script:
-  - julia -e 'versioninfo(); Pkg.init(); Pkg.add("BinDeps"); Pkg.add("Graphs"); Pkg.add("StatsBase"); Pkg.clone(pwd()); Pkg.build("Metis")'
+  - julia -e 'versioninfo(); Pkg.init(); Pkg.add("BinDeps"); Pkg.add("Graphs"); Pkg.clone(pwd()); Pkg.build("Metis")'
   - julia -e 'using Metis; @assert isdefined(:Metis); @assert typeof(Metis) === Module'
   - julia --code-coverage ./test/runtests.jl
 after_success:

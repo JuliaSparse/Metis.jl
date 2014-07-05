@@ -1,7 +1,6 @@
 using Graphs
 using Metis
 using Base.Test
-using StatsBase
 
 copter2 = Metis.testgraph("copter2");
 perm, iperm = nodeND(copter2)
@@ -15,6 +14,15 @@ perm, iperm = nodeND(ata,3)
 
 perm, iperm = nodeND(ata,0)             # reset the verbosity
 @test all(invperm(perm) .== iperm)
+
+function counts{T<:Integer}(v::Vector{T},k::Int)
+    ans = zeros(Int,k)
+    for i in 1:length(v)
+        ans[v[i]] += 1
+    end
+    ans
+end
+
 
 objval, part = partGraphKway(copter2, 6)
 @test counts(part,6) == [9076,9374,9384,9523,8978,9141]
