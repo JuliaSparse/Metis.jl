@@ -1,6 +1,6 @@
 #  [Julia](http://julialang.org) interface to the Metis graph-partitioning algorithms
 
-[![Build Status](https://travis-ci.org/dmbates/Metis.jl.svg?branch=master)](https://travis-ci.org/dmbates/Metis.jl)
+[![Build Status](https://travis-ci.org/JuliaSparse/Metis.jl.svg?branch=master)](https://travis-ci.org/JuliaSparse/Metis.jl)
 [![Coverage Status](https://coveralls.io/repos/dmbates/Metis.jl/badge.png?branch=master)](https://coveralls.io/r/dmbates/Metis.jl?branch=master)
 [![Package Evaluator](http://iainnz.github.io/packages.julialang.org/badges/Metis_0.3.svg)](http://iainnz.github.io/packages.julialang.org/?pkg=Metis&ver=0.3)
 
