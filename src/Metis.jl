@@ -11,6 +11,8 @@ module Metis
     export
         nodeND,                         # determine fill-reducing permutation
         nodeND!,                        # mutating version
+        vertexSep,                      # single separator
+        vertexSep!,
         partGraphKway,
         partGraphRecursive
 
@@ -65,6 +67,49 @@ module Metis
                     &int32(n), xadj, adjncy, C_NULL, metis_options, perm, iperm)
         if (err != METIS_OK) error("METIS_NodeND returned error code $err") end
         perm, iperm
+    end
+
+    function vertexSep!{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer)
+                                        # check symmetry of structure
+        nz = m.nzval                    # nzval made uniform
+        @inbounds for i in 1:length(nz)
+            nz[i] = one(Tv)
+        end
+        issym(m) || ishermitian(m) || error("m must be symmetric or Hermitian")
+                                        # drop diagonal elements
+        Base.SparseMatrix.fkeep!(m,(i,j,x,other) -> i != j, None)
+        metis_options[METIS_OPTION_DBGLVL] = verbose
+        n = convert(Cint, m.n)
+        sepSize = Cint()
+        part = Array(Cint, n)
+        err = ccall((:METIS_ComputeVertexSeparator,libmetis), Cint,
+                    (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
+                     Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
+                    &n, m.colptr, m.rowval, C_NULL, metis_options, 
+                    &sepSize, part)
+        err == METIS_OK || error("METIS_ComputeVertexSeparator returned error code $err")
+        sepSize, part
+    end
+
+    vertexSep{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer) = vertexSep!(copy(m),verbose)
+
+    vertexSep!{Tv}(m::SparseMatrixCSC{Tv,Cint}) = vertexSep!(m,0) # default to no output
+
+    vertexSep{Tv}(m::SparseMatrixCSC{Tv,Cint}) = vertexSep!(copy(m))
+
+    vertexSep{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti}) = vertexSep!(convert(SparseMatrixCSC{Tv,Cint},m))
+
+    function vertexSep{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
+        n, xadj, adjncy = mkadj(al)
+        sepSize = Cint()
+        part = Array(Int32, n)
+        err = ccall((:METIS_ComputeVertexSeparator,libmetis), Int32,
+                    (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
+                     Ptr{Int32}, Ptr{Int32}),
+                    &int32(n), xadj, adjncy, C_NULL, metis_options, 
+                    &sepSize, part)
+        if (err != METIS_OK) error("METIS_ComputeVertexSeparator returned error code $err") end
+        sepSize, part
     end
 
     function partGraphKway{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}},
