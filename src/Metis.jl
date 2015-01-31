@@ -80,7 +80,7 @@ module Metis
         Base.SparseMatrix.fkeep!(m,(i,j,x,other) -> i != j, None)
         metis_options[METIS_OPTION_DBGLVL] = verbose
         n = convert(Cint, m.n)
-        sepSize = Cint()
+        sepSize::Cint = 0
         part = Array(Cint, n)
         err = ccall((:METIS_ComputeVertexSeparator,libmetis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
@@ -101,7 +101,7 @@ module Metis
 
     function vertexSep{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
         n, xadj, adjncy = mkadj(al)
-        sepSize = Cint()
+        sepSize::Int32 = 0
         part = Array(Int32, n)
         err = ccall((:METIS_ComputeVertexSeparator,libmetis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
