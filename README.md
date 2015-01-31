@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/JuliaSparse/Metis.jl.svg?branch=master)](https://travis-ci.org/JuliaSparse/Metis.jl)
 [![Coverage Status](https://coveralls.io/repos/dmbates/Metis.jl/badge.png?branch=master)](https://coveralls.io/r/dmbates/Metis.jl?branch=master)
-[![Package Evaluator](http://iainnz.github.io/packages.julialang.org/badges/Metis_0.3.svg)](http://iainnz.github.io/packages.julialang.org/?pkg=Metis&ver=0.3)
+[![Metis](http://pkg.julialang.org/badges/Metis_release.svg)](http://pkg.julialang.org/?pkg=Metis&ver=release)
 
 ## Installation
 
