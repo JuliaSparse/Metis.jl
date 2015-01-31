@@ -35,9 +35,7 @@ objval, part = partGraphKway(mdual, 10)
 @test counts(part,10) == [25789,25731,25790,25998,25728,25724,25722,26061,25995,26031]
 
 copter2 = Metis.testgraph("copter2")
-# There does not seem to be a simple way to copy a graph...
-copter2Copy = Metis.testgraph("copter2")
-sepSize, copterPart = vertexSep(copter2Copy)
+sizes, copterPart = vertexSep(copter2)
 
 function testGraphPart(g,part)
   n = length(copter2.vertices)
@@ -71,33 +69,26 @@ end
 nx = 100
 ny = 110
 A = speye(nx*ny,nx*ny)
-ACopy = speye(nx*ny,nx*ny)
-# NOTE: At this time, copy(A) does not produce a deep copy
 for x=1:nx
   for y=1:ny
     s = x + (y-1)*nx
     A[s,s] = 4
-    ACopy[s,s] = 4
     if x > 1
       A[s,s-1] = -1
-      ACopy[s,s-1] = -1
     end
     if x < nx
       A[s,s+1] = -1
-      ACopy[s,s+1] = -1
     end
     if y > 1
       A[s,s-nx] = -1
-      ACopy[s,s-nx] = -1
     end
     if y < ny
       A[s,s+nx] = -1
-      ACopy[s,s+nx] = -1
     end
   end
 end
 
-sepSize, matPart = vertexSep(A) 
+sizes, matPart = vertexSep(A) 
 
 function testMatPart(m,part)
   validPart = true
@@ -129,4 +120,4 @@ function testMatPart(m,part)
   validPart
 end
 
-@test testMatPart(ACopy,matPart)
+@test testMatPart(A,matPart)

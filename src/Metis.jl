@@ -55,7 +55,7 @@ module Metis
 
     nodeND{Tv}(m::SparseMatrixCSC{Tv,Cint}) = nodeND!(copy(m))
 
-    nodeND{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti}) = nodeND!(convert(SparseMatrixCSC{Tv,Cint},m))
+    nodeND{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti}) = nodeND(convert(SparseMatrixCSC{Tv,Cint},m))
 
     function nodeND{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
         n, xadj, adjncy = mkadj(al)
@@ -99,7 +99,12 @@ module Metis
                     &n, m.colptr, m.rowval, C_NULL, metis_options, 
                     sepSize, part)
         err == METIS_OK || error("METIS_ComputeVertexSeparator returned error code $err")
-        sepSize[1], part
+
+        sizes = zeros(Cint,3)
+        for i=1:n
+          sizes[part[i]+1] += 1
+        end
+        sizes, part
     end
 
     vertexSep{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer) = vertexSep!(copy(m),verbose)
@@ -108,7 +113,7 @@ module Metis
 
     vertexSep{Tv}(m::SparseMatrixCSC{Tv,Cint}) = vertexSep!(copy(m))
 
-    vertexSep{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti}) = vertexSep!(convert(SparseMatrixCSC{Tv,Cint},m))
+    vertexSep{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti}) = vertexSep(convert(SparseMatrixCSC{Tv,Cint},m))
 
     function vertexSep{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
         n, xadj, adjncy = mkadj(al)
@@ -130,7 +135,12 @@ module Metis
                     &int32(n), xadj, adjncy, C_NULL, metis_options, 
                     sepSize, part)
         if (err != METIS_OK) error("METIS_ComputeVertexSeparator returned error code $err") end
-        sepSize[1], part
+
+        sizes = zeros(Int32,3)
+        for i=1:n
+          sizes[part[i]+1] += 1
+        end
+        sizes, part
     end
 
     function partGraphKway{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}},
