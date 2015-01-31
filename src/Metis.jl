@@ -80,15 +80,26 @@ module Metis
         Base.SparseMatrix.fkeep!(m,(i,j,x,other) -> i != j, None)
         metis_options[METIS_OPTION_DBGLVL] = verbose
         n = convert(Cint, m.n)
-        sepSize::Cint = 0
+        sepSize = zeros(Cint, 1)
         part = Array(Cint, n)
+
+        # Since the ParMETIS internal routines do not seem to support one-based
+        # numbering, we must manually decrease the entries of m.xadj and
+        # m.rowval (which is destructive)
+        for i=1:m.colptr[n+1]-1
+          m.rowval[i] -= 1;
+        end
+        for i=1:n+1
+          m.colptr[i] -= 1; 
+        end
+
         err = ccall((:METIS_ComputeVertexSeparator,libmetis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
                      Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
                     &n, m.colptr, m.rowval, C_NULL, metis_options, 
-                    &sepSize, part)
+                    sepSize, part)
         err == METIS_OK || error("METIS_ComputeVertexSeparator returned error code $err")
-        sepSize, part
+        sepSize[1], part
     end
 
     vertexSep{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer) = vertexSep!(copy(m),verbose)
@@ -101,15 +112,25 @@ module Metis
 
     function vertexSep{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
         n, xadj, adjncy = mkadj(al)
-        sepSize::Int32 = 0
+        sepSize = zeros(Int32, 1)
         part = Array(Int32, n)
+
+        # Since the ParMETIS internal routines do not seem to support one-based
+        # numbering, we must manually decrease the entries of xadj and adjncy
+        for i=1:length(adjncy)
+          adjncy[i] -= 1;
+        end
+        for i=1:n+1
+          xadj[i] -= 1; 
+        end
+
         err = ccall((:METIS_ComputeVertexSeparator,libmetis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}),
                     &int32(n), xadj, adjncy, C_NULL, metis_options, 
-                    &sepSize, part)
+                    sepSize, part)
         if (err != METIS_OK) error("METIS_ComputeVertexSeparator returned error code $err") end
-        sepSize, part
+        sepSize[1], part
     end
 
     function partGraphKway{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}},
