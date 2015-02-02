@@ -10,7 +10,7 @@ module Metis
 
     export
         nodeND,                         # determine fill-reducing permutation
-        nodeND!,                        # mutating version
+        vertexSep,                      # single separator
         partGraphKway,
         partGraphRecursive
 
@@ -26,34 +26,37 @@ module Metis
         length(al.adjlist), int32(cumsum(vcat(1, map(length, al.adjlist)))), int32(vcat(al.adjlist...))
     end
         
-    function nodeND!{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer)
-                                        # check symmetry of structure
-        nz = m.nzval                    # nzval made uniform
+    function nodeND{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer=0)
+        # We must make a copy of m so that we can check for structural symmetry
+        # as well as drop entries to satisfy METIS's xadj and adjncy constraints
+        mMod = copy(m) 
+
+        # Test for structural symmetry
+        nz = mMod.nzval 
         @inbounds for i in 1:length(nz)
             nz[i] = one(Tv)
         end
-        issym(m) || ishermitian(m) || error("m must be symmetric or Hermitian")
-                                        # drop diagonal elements
-        Base.SparseMatrix.fkeep!(m,(i,j,x,other) -> i != j, None)
+        # check symmetry of structure
+        issym(mMod) || ishermitian(mMod) || 
+          error("mMod must be symmetric or Hermitian")
+
+        # Drop self-edges
+        Base.SparseMatrix.fkeep!(mMod,(i,j,x,other) -> i != j, None)
+
         metis_options[METIS_OPTION_DBGLVL] = verbose
-        n = convert(Cint, m.n)
+        n = convert(Cint, mMod.n)
         perm = Array(Cint, n)
         iperm = Array(Cint, n)
         err = ccall((:METIS_NodeND,libmetis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
                      Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
-                    &n, m.colptr, m.rowval, C_NULL, metis_options, perm, iperm)
+                    &n, mMod.colptr, mMod.rowval, C_NULL, metis_options, 
+                     perm, iperm)
         err == METIS_OK || error("METIS_NodeND returned error code $err")
         perm, iperm
     end
 
-    nodeND{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer) = nodeND!(copy(m),verbose)
-
-    nodeND!{Tv}(m::SparseMatrixCSC{Tv,Cint}) = nodeND!(m,0) # default to no output
-
-    nodeND{Tv}(m::SparseMatrixCSC{Tv,Cint}) = nodeND!(copy(m))
-
-    nodeND{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti}) = nodeND!(convert(SparseMatrixCSC{Tv,Cint},m))
+    nodeND{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti},verbose::Integer=0) = nodeND(convert(SparseMatrixCSC{Tv,Cint},m),verbose)
 
     function nodeND{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
         n, xadj, adjncy = mkadj(al)
@@ -65,6 +68,82 @@ module Metis
                     &int32(n), xadj, adjncy, C_NULL, metis_options, perm, iperm)
         if (err != METIS_OK) error("METIS_NodeND returned error code $err") end
         perm, iperm
+    end
+
+    function vertexSep{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer)
+        # We must make a copy of m so that we can check for structural symmetry
+        # as well as drop entries to satisfy METIS's xadj and adjncy constraints
+        mMod = copy(m) 
+
+        # Test for structural symmetry
+        nz = mMod.nzval 
+        @inbounds for i in 1:length(nz)
+            nz[i] = one(Tv)
+        end
+        # check symmetry of structure
+        issym(mMod) || ishermitian(mMod) || 
+          error("mMod must be symmetric or Hermitian")
+
+        # Drop self-edges
+        Base.SparseMatrix.fkeep!(mMod,(i,j,x,other) -> i != j, None)
+
+        metis_options[METIS_OPTION_DBGLVL] = verbose
+        n = convert(Cint, mMod.n)
+        sepSize = zeros(Cint, 1)
+        part = Array(Cint, n)
+
+        # Since the ParMETIS internal routines do not seem to support one-based
+        # numbering, we must manually decrease the entries of mMod.xadj and
+        # mMod.rowval (which is destructive)
+        for i=1:mMod.colptr[n+1]-1
+          mMod.rowval[i] -= 1;
+        end
+        for i=1:n+1
+          mMod.colptr[i] -= 1; 
+        end
+
+        err = ccall((:METIS_ComputeVertexSeparator,libmetis), Cint,
+                    (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
+                     Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
+                    &n, mMod.colptr, mMod.rowval, C_NULL, metis_options, 
+                    sepSize, part)
+        err == METIS_OK || error("METIS_ComputeVertexSeparator returned error code $err")
+
+        sizes = zeros(Cint,3)
+        for i=1:n
+          sizes[part[i]+1] += 1
+        end
+        sizes, part
+    end
+
+    vertexSep{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti},verbose::Integer=0) = vertexSep(convert(SparseMatrixCSC{Tv,Cint},m),verbose)
+
+    function vertexSep{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
+        n, xadj, adjncy = mkadj(al)
+        sepSize = zeros(Int32, 1)
+        part = Array(Int32, n)
+
+        # Since the ParMETIS internal routines do not seem to support one-based
+        # numbering, we must manually decrease the entries of xadj and adjncy
+        for i=1:length(adjncy)
+          adjncy[i] -= 1;
+        end
+        for i=1:n+1
+          xadj[i] -= 1; 
+        end
+
+        err = ccall((:METIS_ComputeVertexSeparator,libmetis), Int32,
+                    (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
+                     Ptr{Int32}, Ptr{Int32}),
+                    &int32(n), xadj, adjncy, C_NULL, metis_options, 
+                    sepSize, part)
+        if (err != METIS_OK) error("METIS_ComputeVertexSeparator returned error code $err") end
+
+        sizes = zeros(Int32,3)
+        for i=1:n
+          sizes[part[i]+1] += 1
+        end
+        sizes, part
     end
 
     function partGraphKway{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}},
