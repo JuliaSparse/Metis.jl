@@ -21,11 +21,17 @@ Configuration requires Cmake version 2.8 or later.  At present the build is only
 The names of the available Julia functions are those from the Metis API
 
 `nodeND(al)`
-: create a fill-reducing permutation from the adjacency list, `al`, of a symmetric sparse matrix
+: recursively bisect the undirected graph implied by the adjacency list, 
+  `al`, and return the fill-reducing permutation that results
 `nodeND(m)`
-: create a fill-reducing permutation from a symmetric sparse matrix, `m`.
-`nodeND!(m)`
-: mutating version of `nodeND`
+: recursively bisect the undirected graph of the nonzero structure of the 
+  symmetric sparse matrix, `m`, and return the fill-reducing permutation
+`vertexSep(al)`
+: compute a vertex separator for the adjacency list, `al`, of an
+  undirected graph
+`vertexSep(m)`
+: compute a vertex separator for the undirected graph of the nonzero 
+  structure of the symmetric sparse matrix, `m`
 `partGraphKway(al, nparts::Integer)`
 : partition a graph given as an adjacency list, `al`, into nparts 
 `partGraphRecursive(al, nparts::Integer)`
@@ -46,6 +52,7 @@ The function `Metis.testgraph` can be used to read one of the sample graphs avai
 using Graphs, Metis
 copter2 = Metis.testgraph("copter2");
 perm, iperm = nodeND(copter2)
+sizes, part = vertexSep(copter2)
 objval, part = partGraphKway(copter2, 6)
 counts = zeros(Int, 6);
 for p in part counts[p] += 1 end
