@@ -10,11 +10,13 @@
 Pkg.add("Metis")
 ```
 
-On systems without a pre-packaged Metis library, adding this package will download, configure and install metis-5.1.0 in the directory
+Adding the package will install the Metis library itself on OS-X, Windows and Linux systems using `apt` or `yum`.
+
+On other operating systems this package will download, configure and install metis-5.1.0 in the directory
 ```julia
 Pkg.dir("Metis", "deps")
 ```
-Configuration requires Cmake version 2.8 or later.  At present the build is only available on Linux/Unix.  Contributions of build stanzas for Windows or OS X are welcome.
+Configuration requires Cmake version 2.8 or later.
 
 ## Functions
 
