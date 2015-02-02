@@ -20,22 +20,16 @@ Configuration requires Cmake version 2.8 or later.  At present the build is only
 
 The names of the available Julia functions are those from the Metis API
 
-`nodeND(al)`
-: recursively bisect the undirected graph implied by the adjacency list, 
+* `nodeND(al)` : recursively bisect the undirected graph implied by the adjacency list, 
   `al`, and return the fill-reducing permutation that results
-`nodeND(m)`
-: recursively bisect the undirected graph of the nonzero structure of the 
+* `nodeND(m)` : recursively bisect the undirected graph of the nonzero structure of the 
   symmetric sparse matrix, `m`, and return the fill-reducing permutation
-`vertexSep(al)`
-: compute a vertex separator for the adjacency list, `al`, of an
+* `vertexSep(al)`: compute a vertex separator for the adjacency list, `al`, of an
   undirected graph
-`vertexSep(m)`
-: compute a vertex separator for the undirected graph of the nonzero 
+* `vertexSep(m)`: compute a vertex separator for the undirected graph of the nonzero 
   structure of the symmetric sparse matrix, `m`
-`partGraphKway(al, nparts::Integer)`
-: partition a graph given as an adjacency list, `al`, into nparts 
-`partGraphRecursive(al, nparts::Integer)`
-: partition a graph given as an adjacency list, `al`, into nparts 
+* `partGraphKway(al, nparts::Integer)`: partition a graph given as an adjacency list, `al`, into nparts 
+* `partGraphRecursive(al, nparts::Integer)`: partition a graph given as an adjacency list, `al`, into nparts 
 
 ## Examples
 
