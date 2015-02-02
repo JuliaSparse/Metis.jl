@@ -2,122 +2,120 @@ using Graphs
 using Metis
 using Base.Test
 
-copter2 = Metis.testgraph("copter2");
+const copter2 = Metis.testgraph("copter2");
 perm, iperm = nodeND(copter2)
 @test all(invperm(perm) .== iperm)
 
 srand(12321)
-a = convert(SparseMatrixCSC{Float64,Int32},sprand(1000,100,0.01))
-ata = a'a
+const a = convert(SparseMatrixCSC{Float64,Int32},sprand(1000,100,0.01))
+const ata = a'a
 perm, iperm = nodeND(ata,3)
 @test all(invperm(perm) .== iperm)
+perm, iperm = nodeND(ata,0)             # reset verbosity level
 
-perm, iperm = nodeND(ata,0)             # reset the verbosity
-@test all(invperm(perm) .== iperm)
-
-function counts{T<:Integer}(v::Vector{T},k::Int)
-    ans = zeros(Int,k)
-    for i in 1:length(v)
-        ans[v[i]] += 1
+function counts{T<:Integer}(v::Vector{T})
+    mn,mx = extrema(v)
+    0 < mn || error("Minimum value of v = $mn, should be > 0")
+    ans = zeros(Int,mx)
+    for vv in v
+        ans[vv] += 1
     end
     ans
 end
 
-
 objval, part = partGraphKway(copter2, 6)
-@test counts(part,6) == [9076,9374,9384,9523,8978,9141]
+@test counts(part) == [9076,9374,9384,9523,8978,9141]
 
 objval, part = partGraphRecursive(copter2,6)
-@test counts(part,6) == [9076,9374,9384,9523,8978,9141]
+@test counts(part) == [9076,9374,9384,9523,8978,9141]
 
-mdual = Metis.testgraph("mdual")
+const mdual = Metis.testgraph("mdual")
 objval, part = partGraphKway(mdual, 10)
-@test counts(part,10) == [25789,25731,25790,25998,25728,25724,25722,26061,25995,26031]
+@test counts(part) == [25789,25731,25790,25998,25728,25724,25722,26061,25995,26031]
 
-copter2 = Metis.testgraph("copter2")
 sizes, copterPart = vertexSep(copter2)
 
 function testGraphPart(g,part)
-  n = length(copter2.vertices)
-  validPart = true
-  for i=1:n
-    partVal = part[i]
-    if partVal == 0
-      for j in g.adjlist[i] 
-        if part[j] == 1
-          println("Edge ($i,$j) connects sets 0 and 1")
-          validPart = false
+    validPart = true
+    for i in 1:length(part)
+        partVal = part[i]
+        if partVal == 0
+            for j in g.adjlist[i] 
+                if part[j] == 1
+                    println("Edge ($i,$j) connects sets 0 and 1")
+                    validPart = false
+                end
+            end
+        elseif partVal == 1
+            for j in g.adjlist[i] 
+                if part[j] == 0
+                    println("Edge ($i,$j) connects sets 1 and 0")
+                    validPart = false
+                end
+            end
+        elseif partVal != 2
+            println("Vertex $i assigned to set $partVal")
+            validPart = false
         end
-      end
-    elseif partVal == 1
-      for j in g.adjlist[i] 
-        if part[j] == 0
-          println("Edge ($i,$j) connects sets 1 and 0")
-          validPart = false
-        end
-      end
-    elseif partVal != 2
-      println("Vertex $i assigned to set $partVal")
-      validPart = false
     end
-  end
-  validPart
+    validPart
 end
 
 @test testGraphPart(copter2,copterPart)
 
-nx = 100
-ny = 110
-A = speye(nx*ny,nx*ny)
-for x=1:nx
-  for y=1:ny
-    s = x + (y-1)*nx
-    A[s,s] = 4
-    if x > 1
-      A[s,s-1] = -1
+const nx = 100
+const ny = 110
+const A = 4.*speye(nx*ny)
+## This pattern would be faster to create by adding matrices created with blkdiag and spdiagm/
+## However, I haven't gotten the pattern correct yet.  The diagonal, sub- and super-diagonal are
+## blk = spdiagm(fill(2.,nx) + spdiagm(fill(-1.,nx-1),-1,nx,nx)
+## A = blkdiag(fill(blk+blk',ny)...)
+for x in 1:nx
+    for y in 1:ny
+        s = x + (y-1)*nx
+        if x > 1
+            A[s,s-1] = -1
+        end
+        if x < nx
+            A[s,s+1] = -1
+        end
+        if y > 1
+            A[s,s-nx] = -1
+        end
+        if y < ny
+            A[s,s+nx] = -1
+        end
     end
-    if x < nx
-      A[s,s+1] = -1
-    end
-    if y > 1
-      A[s,s-nx] = -1
-    end
-    if y < ny
-      A[s,s+nx] = -1
-    end
-  end
 end
 
 sizes, matPart = vertexSep(A) 
 
 function testMatPart(m,part)
-  validPart = true
-  n = m.n
-  validPart = true
-  for i=1:n
-    partVal = part[i]
-    if partVal == 0
-      for k in m.colptr[i]:m.colptr[i+1]-1 
-        j = m.rowval[k]
-        if part[j] == 1
-          println("Nonzero ($i,$j) connects sets 0 and 1")
-          validPart = false
+    validPart = true
+    for i in 1:length(part)
+        partVal = part[i]
+        if partVal == 0
+            for k in m.colptr[i]:m.colptr[i+1]-1 
+                j = m.rowval[k]
+                if part[j] == 1
+                    println("Nonzero ($i,$j) connects sets 0 and 1")
+                    validPart = false
+                end
+            end
+        elseif partVal == 1
+            for k in m.colptr[i]:m.colptr[i+1]-1 
+                j = m.rowval[k]
+                if part[j] == 0
+                    println("Nonzero ($i,$j) connects sets 1 and 0")
+                    validPart = false
+                end
+            end
+        elseif partVal != 2
+            println("Vertex $i assigned to set $partVal")
+            validPart = false
         end
-      end
-    elseif partVal == 1
-      for k in m.colptr[i]:m.colptr[i+1]-1 
-        j = m.rowval[k]
-        if part[j] == 0
-          println("Nonzero ($i,$j) connects sets 1 and 0")
-          validPart = false
-        end
-      end
-    elseif partVal != 2
-      println("Vertex $i assigned to set $partVal")
-      validPart = false
     end
-  end
-  validPart
+    validPart
 end
 
 @test testMatPart(A,matPart)
