@@ -69,10 +69,9 @@ function appendel(I,J,V,i,j,v)
     push!(V,v)
 end
 
-"Generate a mesh from a finite-element problem"
-function genfinite{T<:Integer}(nx::T,ny::T)
+function laplacian2d{T<:Integer}(nx::T,ny::T)
     n = nx*ny
-    nzest = n << 2
+    nzest = 5n
     I = sizehint(Int32[],nzest)
     J = sizehint(Int32[],nzest)
     V = sizehint(Float64[],nzest)
@@ -88,7 +87,7 @@ function genfinite{T<:Integer}(nx::T,ny::T)
     A + A'
 end
 
-const A = genfinite(100,110)
+const A = laplacian2d(100,110)
 
 sizes, matPart = vertexSep(A) 
 
