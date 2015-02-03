@@ -4,7 +4,11 @@
 ## The library should be compiled with IDXTYPEWIDTH = 32 (the default)
 
 module Metis
-    include("../deps/deps.jl")          # load library
+    if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
+        include("../deps/deps.jl")      # load the library and define libmetis
+    else
+        error("Metis package not properly installed. Please run Pkg.build(\"Metis\")")
+    end
 
     using Graphs                        # for AdjacencyList types
 
@@ -26,37 +30,34 @@ module Metis
         length(al.adjlist), int32(cumsum(vcat(1, map(length, al.adjlist)))), int32(vcat(al.adjlist...))
     end
         
-    function nodeND{Tv}(m::SparseMatrixCSC{Tv,Cint},verbose::Integer=0)
-        # We must make a copy of m so that we can check for structural symmetry
-        # as well as drop entries to satisfy METIS's xadj and adjncy constraints
-        mMod = copy(m) 
+    function nodeND(m::SparseMatrixCSC,verbose::Integer=0)
+        issym(m) || isHermitian(m) || error("m must be symmetric or Hermitian")
 
-        # Test for structural symmetry
-        nz = mMod.nzval 
-        @inbounds for i in 1:length(nz)
-            nz[i] = one(Tv)
+        ## copy m.rowval and m.colptr to Int32 vectors dropping diagonal elements
+        rowvs = sizehint(Cint[],nnz(m))
+        colpt = ones(Cint,m.n+1)
+        for col in 1:m.n
+            colcount = 0
+            for k in m.colptr[col] : (m.colptr[col+1] - 1)
+                rv = m.rowval[k]
+                if rv != col
+                    colcount += 1
+                    push!(rowvs,rv)
+                end
+            end
+            colpt[col+1] = colpt[col] + colcount
         end
-        # check symmetry of structure
-        issym(mMod) || ishermitian(mMod) || 
-          error("mMod must be symmetric or Hermitian")
-
-        # Drop self-edges
-        Base.SparseMatrix.fkeep!(mMod,(i,j,x,other) -> i != j, None)
 
         metis_options[METIS_OPTION_DBGLVL] = verbose
-        n = convert(Cint, mMod.n)
-        perm = Array(Cint, n)
-        iperm = Array(Cint, n)
+        perm = Array(Cint, m.n)
+        iperm = Array(Cint, m.n)
         err = ccall((:METIS_NodeND,libmetis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
                      Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
-                    &n, mMod.colptr, mMod.rowval, C_NULL, metis_options, 
-                     perm, iperm)
+                    &int32(m.n), colpt, rowvs, C_NULL, metis_options, perm, iperm)
         err == METIS_OK || error("METIS_NodeND returned error code $err")
         perm, iperm
     end
-
-    nodeND{Tv,Ti}(m::SparseMatrixCSC{Tv,Ti},verbose::Integer=0) = nodeND(convert(SparseMatrixCSC{Tv,Cint},m),verbose)
 
     function nodeND{T<:Integer}(al::GenericAdjacencyList{T,Range1{T},Vector{Vector{T}}})
         n, xadj, adjncy = mkadj(al)
