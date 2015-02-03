@@ -63,30 +63,32 @@ end
 
 @test testGraphPart(copter2,copterPart)
 
-const nx = 100
-const ny = 110
-const A = 4.*speye(nx*ny)
-## This pattern would be faster to create by adding matrices created with blkdiag and spdiagm/
-## However, I haven't gotten the pattern correct yet.  The diagonal, sub- and super-diagonal are
-## blk = spdiagm(fill(2.,nx) + spdiagm(fill(-1.,nx-1),-1,nx,nx)
-## A = blkdiag(fill(blk+blk',ny)...)
-for x in 1:nx
-    for y in 1:ny
-        s = x + (y-1)*nx
-        if x > 1
-            A[s,s-1] = -1
-        end
-        if x < nx
-            A[s,s+1] = -1
-        end
-        if y > 1
-            A[s,s-nx] = -1
-        end
-        if y < ny
-            A[s,s+nx] = -1
+function appendel(I,J,V,i,j,v)
+    push!(I,i)
+    push!(J,j)
+    push!(V,v)
+end
+
+"Generate a mesh from a finite-element problem"
+function genfinite{T<:Integer}(nx::T,ny::T)
+    n = nx*ny
+    nzest = n << 2
+    I = sizehint(Int32[],nzest)
+    J = sizehint(Int32[],nzest)
+    V = sizehint(Float64[],nzest)
+    for x in 1:nx
+        for y in 1:ny
+            s = x + (y-1)*nx
+            appendel(I,J,V,s,s,2)
+            x > 1 && appendel(I,J,V,s,s-1,-1)
+            y > 1 && appendel(I,J,V,s,s-nx,-1)
         end
     end
+    A = sparse(I,J,V,n,n)
+    A + A'
 end
+
+const A = genfinite(100,110)
 
 sizes, matPart = vertexSep(A) 
 
