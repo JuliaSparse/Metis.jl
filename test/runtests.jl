@@ -14,9 +14,7 @@ perm, iperm = nodeND(ata,3)
 perm, iperm = nodeND(ata,0)             # reset verbosity level
 
 function counts{T<:Integer}(v::Vector{T})
-    mn,mx = extrema(v)
-    0 < mn || error("Minimum value of v = $mn, should be > 0")
-    ans = zeros(Int,mx)
+    ans = zeros(Int,maximum(v))
     for vv in v
         ans[vv] += 1
     end
