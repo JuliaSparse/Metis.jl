@@ -1,5 +1,6 @@
 using Graphs
 using Metis
+using Compat
 using Base.Test
 
 const copter2 = Metis.testgraph("copter2");
@@ -70,9 +71,9 @@ end
 function laplacian2d{T<:Integer}(nx::T,ny::T)
     n = nx*ny
     nzest = 5n
-    I = sizehint(Int32[],nzest)
-    J = sizehint(Int32[],nzest)
-    V = sizehint(Float64[],nzest)
+    I = @compat sizehint!(Int32[],nzest)
+    J = @compat sizehint!(Int32[],nzest)
+    V = @compat sizehint!(Float64[],nzest)
     for x in 1:nx
         for y in 1:ny
             s = x + (y-1)*nx

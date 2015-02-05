@@ -11,7 +11,7 @@ module Metis
     end
 
     using Graphs,Compat                 # for AdjacencyList types
-          
+
     export
         nodeND,                         # determine fill-reducing permutation
         vertexSep,                      # single separator
