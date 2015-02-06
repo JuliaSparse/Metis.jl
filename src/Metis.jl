@@ -5,7 +5,7 @@
 
 module Metis
     if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
-        include("../deps/deps.jl")      # load the library and define libmetis
+        include("../deps/deps.jl")      # define libmetis and check it can be dlopen'd
     else
         error("Metis package not properly installed. Please run Pkg.build(\"Metis\")")
     end
@@ -18,13 +18,13 @@ module Metis
         partGraphKway,
         partGraphRecursive
 
-    include("metis_h.jl")
-    include("util.jl")
+    include("metis_h.jl")               # define constants
+    include("util.jl")                  # metisform and testgraph functions
 
     const metis_options = -ones(Int32, METIS_NOPTIONS) # defaults indicated by -1
         
     function nodeND(x,verbose::Integer=0)
-        n,xadj,adjncy = mkadjCSR(x)
+        n,xadj,adjncy = metisform(x)
         metis_options[METIS_OPTION_DBGLVL] = verbose
         perm = Array(Cint, n)
         iperm = Array(Cint, n)
@@ -37,7 +37,7 @@ module Metis
     end
 
     function vertexSep(x,verbose::Integer=0)
-        n,xadj,adjncy = mkadjCSR(x)
+        n,xadj,adjncy = metisform(x)
 
         metis_options[METIS_OPTION_DBGLVL] = verbose
         sepSize = zeros(Cint, 1)
@@ -58,7 +58,7 @@ module Metis
     end
 
     function partGraphKway(al::GenericAdjacencyList, nparts::Integer)
-        n, xadj, adjncy = mkadjCSR(al)
+        n, xadj, adjncy = metisform(al)
         part = Array(Cint, n)
         objval = zeros(Cint, 1)
         err = ccall((:METIS_PartGraphKway,libmetis), Int32,
@@ -67,12 +67,12 @@ module Metis
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}),
                     &n, &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &int32(nparts),
                     C_NULL, C_NULL, metis_options, objval, part)
-        if (err != METIS_OK) error("METIS_PartGraphKWay returned error code $err") end
+        err == METIS_OK || error("METIS_PartGraphKWay returned error code $err")
         objval[1], part .+ one(Cint)
     end
 
     function partGraphRecursive(al::GenericAdjacencyList,nparts::Integer)
-        n, xadj, adjncy = mkadjCSR(al)
+        n, xadj, adjncy = metisform(al)
         part = Array(Int32, n)
         objval = zeros(Int32, 1)
         err = ccall((:METIS_PartGraphKway,libmetis), Int32,
@@ -81,7 +81,7 @@ module Metis
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}),
                     &n, &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &int32(nparts),
                     C_NULL, C_NULL, metis_options, objval, part)
-        if (err != METIS_OK) error("METIS_PartGraphKWay returned error code $err") end
+        err == METIS_OK || error("METIS_PartGraphKWay returned error code $err")
         objval[1], part .+ one(Cint)
     end
 end
