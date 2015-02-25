@@ -57,8 +57,8 @@ module Metis
         sizes, part
     end
 
-    function partGraphKway(al::GenericAdjacencyList, nparts::Integer)
-        n, xadj, adjncy = metisform(al)
+    function partGraphKway(x, nparts::Integer)
+        n, xadj, adjncy = metisform(x)
         part = Array(Cint, n)
         objval = zeros(Cint, 1)
         err = ccall((:METIS_PartGraphKway,libmetis), Int32,
@@ -71,8 +71,8 @@ module Metis
         objval[1], part .+ one(Cint)
     end
 
-    function partGraphRecursive(al::GenericAdjacencyList,nparts::Integer)
-        n, xadj, adjncy = metisform(al)
+    function partGraphRecursive(x, nparts::Integer)
+        n, xadj, adjncy = metisform(x)
         part = Array(Int32, n)
         objval = zeros(Int32, 1)
         err = ccall((:METIS_PartGraphKway,libmetis), Int32,
