@@ -23,14 +23,34 @@ function counts{T<:Integer}(v::Vector{T})
 end
 
 objval, part = partGraphKway(copter2, 6)
-@test counts(part) == [9076,9374,9384,9523,8978,9141]
+@test extrema(part) == (1,6)            # subset values are in the correct range
+@test all(i->bool(findfirst(part,i)),1:6) # the 6 subsets are non-empty
+
+# the sizes of partition subsets are not consistent across OS's
+#@test counts(part) == [9076,9374,9384,9523,8978,9141]
+
+function interface(part::Vector, g::Graphs.GenericAdjacencyList)
+    (nv = length(part)) == length(g.vertices) || error("partition length != # of vertices")
+    conn = falses(nv)                   # vertex connected to another subset?
+    for i in 1:nv
+        pp = part[i]
+        conn[i] = any(j -> part[j] != pp, g.adjlist[i])
+    end
+    countnz(conn)
+end
+
+@test interface(part,copter2) < 6000    # 5907 on an Ubuntu system
 
 objval, part = partGraphRecursive(copter2,6)
-@test counts(part) == [9076,9374,9384,9523,8978,9141]
+@test extrema(part) == (1,6)
+@test all(i->bool(findfirst(part,i)),1:6)
+@test interface(part,copter2) < 6000
 
 const mdual = Metis.testgraph("mdual")
 objval, part = partGraphKway(mdual, 10)
-@test counts(part) == [25789,25731,25790,25998,25728,25724,25722,26061,25995,26031]
+@test extrema(part) == (1,10)
+@test all(i->bool(findfirst(part,i)),1:10)
+@test interface(part,mdual) < 19000     # 18263 on an Ubuntu system
 
 sizes, copterPart = vertexSep(copter2)
 
