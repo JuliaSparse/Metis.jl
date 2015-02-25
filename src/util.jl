@@ -31,7 +31,7 @@ end
 
 
 function testgraph(nm::ASCIIString)
-    pathnm = Pkg.dir("Metis", "graphs", string(nm, ".graph"))
+    pathnm = joinpath(dirname(@__FILE__), "..", "graphs", string(nm, ".graph"))
     ff = open(pathnm, "r")
     nvert, nedge = map(int, split(readline(ff)))
     adjlist = Array(Vector{Int32}, nvert)
