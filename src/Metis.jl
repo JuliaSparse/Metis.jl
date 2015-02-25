@@ -11,7 +11,7 @@ module Metis
     end
 
     using Graphs,Compat                 # for AdjacencyList types
-
+    using LightGraphs                   # metisform
     export
         nodeND,                         # determine fill-reducing permutation
         vertexSep,                      # single separator
@@ -22,7 +22,7 @@ module Metis
     include("util.jl")                  # metisform and testgraph functions
 
     const metis_options = -ones(Int32, METIS_NOPTIONS) # defaults indicated by -1
-        
+
     function nodeND(x,verbose::Integer=0)
         n,xadj,adjncy = metisform(x)
         metis_options[METIS_OPTION_DBGLVL] = verbose
@@ -46,7 +46,7 @@ module Metis
         err = ccall((:METIS_ComputeVertexSeparator,libmetis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
                      Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
-                    &n, xadj, adjncy, C_NULL, metis_options, 
+                    &n, xadj, adjncy, C_NULL, metis_options,
                     sepSize, part)
         err == METIS_OK || error("METIS_ComputeVertexSeparator returned error code $err")
 
