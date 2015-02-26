@@ -1,7 +1,7 @@
 ## Create the 0-based column pointers and row indices of the adjacency matrix
 ## as required by the Metis functions
-function metisform(al::GenericAdjacencyList)
-    !is_directed(al) || error("Metis functions require undirected graphs")
+function metisform(al::Graphs.GenericAdjacencyList)
+    !Graphs.is_directed(al) || error("Metis functions require undirected graphs")
     isa(al.vertices,Range1) && first(al.vertices) == 1 || error("Vertices must be numbered from 1")
     length(al.adjlist), int32(cumsum(vcat(0, map(length, al.adjlist)))),
         int32(vcat(al.adjlist...)) .- one(Int32)
@@ -29,6 +29,7 @@ function metisform(m::SparseMatrixCSC)
     convert(Int32,m.n),xadj,adjncy
 end
 
+metisform(g::LightGraphs.Graph) = metisform(LightGraphs.adjacency_matrix(g))
 
 function testgraph(nm::ASCIIString)
     pathnm = joinpath(dirname(@__FILE__), "..", "graphs", string(nm, ".graph"))
@@ -42,4 +43,3 @@ function testgraph(nm::ASCIIString)
                                                                     nedge,
                                                                     adjlist)
 end
-

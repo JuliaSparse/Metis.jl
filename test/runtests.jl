@@ -39,14 +39,14 @@ function testGraphPart(g,part)
     for i in 1:length(part)
         partVal = part[i]
         if partVal == 0
-            for j in g.adjlist[i] 
+            for j in g.adjlist[i]
                 if part[j] == 1
                     println("Edge ($i,$j) connects sets 0 and 1")
                     validPart = false
                 end
             end
         elseif partVal == 1
-            for j in g.adjlist[i] 
+            for j in g.adjlist[i]
                 if part[j] == 0
                     println("Edge ($i,$j) connects sets 1 and 0")
                     validPart = false
@@ -88,14 +88,14 @@ end
 
 const A = laplacian2d(100,110)
 
-sizes, matPart = vertexSep(A) 
+sizes, matPart = vertexSep(A)
 
 function testMatPart(m,part)
     validPart = true
     for i in 1:length(part)
         partVal = part[i]
         if partVal == 0
-            for k in m.colptr[i]:m.colptr[i+1]-1 
+            for k in m.colptr[i]:m.colptr[i+1]-1
                 j = m.rowval[k]
                 if part[j] == 1
                     println("Nonzero ($i,$j) connects sets 0 and 1")
@@ -103,7 +103,7 @@ function testMatPart(m,part)
                 end
             end
         elseif partVal == 1
-            for k in m.colptr[i]:m.colptr[i+1]-1 
+            for k in m.colptr[i]:m.colptr[i+1]-1
                 j = m.rowval[k]
                 if part[j] == 0
                     println("Nonzero ($i,$j) connects sets 1 and 0")
@@ -119,3 +119,8 @@ function testMatPart(m,part)
 end
 
 @test testMatPart(A,matPart)
+
+g = LightGraphs.TutteGraph()
+x, y = partGraphKway(g, 6)
+@test maximum(y) == 6
+@test length(y) == LightGraphs.nv(g)
