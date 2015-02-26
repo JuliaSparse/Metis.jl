@@ -29,7 +29,17 @@ function metisform(m::SparseMatrixCSC)
     convert(Int32,m.n),xadj,adjncy
 end
 
-metisform(g::LightGraphs.Graph) = metisform(LightGraphs.adjacency_matrix(g))
+function metisform(g::LightGraphs.Graph)
+    n = nv(g)
+    xadj = zeros(Int32,n + 1)
+    adjncy = sizehint!(Int32[],2*ne(g))
+    for i in 1:n
+        ein = [convert(Int32,dst(x)-1) for x in g.finclist[i]]
+        xadj[i + 1] = xadj[i] + length(ein)
+        append!(adjncy,ein)
+    end
+    n, xadj, adjncy
+end
 
 function testgraph(nm::ASCIIString)
     pathnm = joinpath(dirname(@__FILE__), "..", "graphs", string(nm, ".graph"))

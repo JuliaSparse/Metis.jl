@@ -1,4 +1,5 @@
 using Graphs
+using LightGraphs
 using Metis
 using Compat
 using Base.Test
@@ -142,5 +143,17 @@ end
 
 g = LightGraphs.TutteGraph()
 x, y = partGraphKway(g, 6)
-@test maximum(y) == 6
+@test extrema(y) == (1,6)
 @test length(y) == LightGraphs.nv(g)
+@test all(i->bool(findfirst(y,i)),1:6)
+
+
+function interface(part::Vector, g::LightGraphs.Graph)
+    (n = nv(g)) == length(part) || error("partition length != # of vertices")
+    conn = falses(n)             # vertex connected to another subset?
+    for i in 1:n
+        pp = part[i]
+        conn[i] = any(j -> part[j] != pp, map(dst,g.finclist[i]))
+    end
+    countnz(conn)
+end
