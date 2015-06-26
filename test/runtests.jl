@@ -25,7 +25,7 @@ end
 
 objval, part = partGraphKway(copter2, 6)
 @test extrema(part) == (1,6)            # subset values are in the correct range
-@test all(i->bool(findfirst(part,i)),1:6) # the 6 subsets are non-empty
+@test all(i->findfirst(part,i) != 0,1:6) # the 6 subsets are non-empty
 
 # the sizes of partition subsets are not consistent across OS's
 #@test counts(part) == [9076,9374,9384,9523,8978,9141]
@@ -44,13 +44,13 @@ end
 
 objval, part = partGraphRecursive(copter2,6)
 @test extrema(part) == (1,6)
-@test all(i->bool(findfirst(part,i)),1:6)
+@test all(i->findfirst(part,i) != 0,1:6)
 @test interface(part,copter2) < 6000
 
 const mdual = Metis.testgraph("mdual")
 objval, part = partGraphKway(mdual, 10)
 @test extrema(part) == (1,10)
-@test all(i->bool(findfirst(part,i)),1:10)
+@test all(i->findfirst(part,i) != 0,1:10)
 @test interface(part,mdual) < 19000     # 18263 on an Ubuntu system
 
 sizes, copterPart = vertexSep(copter2)
@@ -145,7 +145,7 @@ g = LightGraphs.TutteGraph()
 x, y = partGraphKway(g, 6)
 @test extrema(y) == (1,6)
 @test length(y) == LightGraphs.nv(g)
-@test all(i->bool(findfirst(y,i)),1:6)
+@test all(i-> findfirst(y,i) != 0,1:6)
 
 
 function interface(part::Vector, g::LightGraphs.Graph)
