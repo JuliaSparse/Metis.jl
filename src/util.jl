@@ -1,10 +1,19 @@
+# convenienct function to flatten Vector of Vector
+function flatten{T}(x::Vector{Vector{T}})
+    out = T[]
+    for y in x
+        append!(out, y)
+    end
+    out
+end
+
 ## Create the 0-based column pointers and row indices of the adjacency matrix
 ## as required by the Metis functions
 function metisform(al::Graphs.GenericAdjacencyList)
     !Graphs.is_directed(al) || error("Metis functions require undirected graphs")
-    isa(al.vertices,Range1) && first(al.vertices) == 1 || error("Vertices must be numbered from 1")
-    length(al.adjlist), int32(cumsum(vcat(0, map(length, al.adjlist)))),
-        int32(vcat(al.adjlist...)) .- one(Int32)
+    @compat isa(al.vertices,UnitRange) && first(al.vertices) == 1 || error("Vertices must be numbered from 1")
+    @compat length(al.adjlist), round(Int32, cumsum(vcat(0, map(length, al.adjlist)))),
+        round(Int32, flatten(al.adjlist)) .- one(Int32)
 end
 
 ## Create the 0-based column pointers and row indices of a symmetric sparse matrix
@@ -34,7 +43,7 @@ function metisform(g::LightGraphs.Graph)
     xadj = zeros(Int32,n + 1)
     adjncy = sizehint!(Int32[],2*ne(g))
     for i in 1:n
-        ein = [convert(Int32,dst(x)-1) for x in g.finclist[i]]
+        ein = [convert(Int32,dst(x)-1) for x in LightGraphs.out_edges(g, i)]
         xadj[i + 1] = xadj[i] + length(ein)
         append!(adjncy,ein)
     end
@@ -44,12 +53,12 @@ end
 function testgraph(nm::ASCIIString)
     pathnm = joinpath(dirname(@__FILE__), "..", "graphs", string(nm, ".graph"))
     ff = open(pathnm, "r")
-    nvert, nedge = map(int, split(readline(ff)))
+    nvert, nedge = map(t -> parse(Int, t), split(readline(ff)))
     adjlist = Array(Vector{Int32}, nvert)
-    for i in 1:nvert adjlist[i] = map(int32, split(readline(ff))) end
+    for i in 1:nvert adjlist[i] = map(t -> parse(Int32, t), split(readline(ff))) end
     close(ff)
-    GenericAdjacencyList{Int32,Range1{Int32},Vector{Vector{Int32}}}(false,
-                                                                    int32(1:nvert),
+    @compat GenericAdjacencyList{Int32,UnitRange{Int32},Vector{Vector{Int32}}}(false,
+                                                                    map(Int32, 1:nvert),
                                                                     nedge,
                                                                     adjlist)
 end
