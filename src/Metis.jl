@@ -65,7 +65,7 @@ module Metis
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}),
-                    &n, &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &Int32(nparts),
+                    &n, &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &convert(Int32,nparts),
                     C_NULL, C_NULL, metis_options, objval, part)
         err == METIS_OK || error("METIS_PartGraphKWay returned error code $err")
         objval[1], part .+ one(Cint)
@@ -79,7 +79,7 @@ module Metis
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}),
-                    &n, &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &Int32(nparts),
+                    &n, &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &convert(Int32,nparts),
                     C_NULL, C_NULL, metis_options, objval, part)
         err == METIS_OK || error("METIS_PartGraphKWay returned error code $err")
         objval[1], part .+ one(Cint)
