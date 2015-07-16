@@ -1,4 +1,4 @@
-using BinDeps
+using BinDeps,Compat
 
 @BinDeps.setup
 
@@ -41,4 +41,4 @@ provides(SimpleBuild,
 	     end)
          end), [libmetis], os=:Unix)
 
-@BinDeps.install [:libmetis => :libmetis]
+@BinDeps.install @compat Dict(:libmetis => :libmetis)
