@@ -23,6 +23,10 @@ module Metis
 
     const metis_options = -ones(Int32, METIS_NOPTIONS) # defaults indicated by -1
 
+    function __init__()
+        metis_options[METIS_OPTION_NUMBERING] = one(Int32)
+    end
+
     function nodeND(x,verbose::Integer=0)
         n,xadj,adjncy = metisform(x)
         metis_options[METIS_OPTION_DBGLVL] = verbose
@@ -33,7 +37,7 @@ module Metis
                      Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
                     &n, xadj, adjncy, C_NULL, metis_options, perm, iperm)
         err == METIS_OK || error("METIS_NodeND returned error code $err")
-        perm .+ one(Cint), iperm .+ one(Cint)
+        perm, iperm
     end
 
     function vertexSep(x,verbose::Integer=0)
@@ -52,7 +56,7 @@ module Metis
 
         sizes = zeros(Cint,3)
         for i=1:n
-          sizes[part[i]+1] += 1
+          sizes[part[i]] += 1
         end
         sizes, part
     end
@@ -68,7 +72,7 @@ module Metis
                     &n, &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &convert(Int32,nparts),
                     C_NULL, C_NULL, metis_options, objval, part)
         err == METIS_OK || error("METIS_PartGraphKWay returned error code $err")
-        objval[1], part .+ one(Cint)
+        objval[1], part
     end
 
     function partGraphRecursive(x, nparts::Integer)
@@ -82,6 +86,6 @@ module Metis
                     &n, &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &convert(Int32,nparts),
                     C_NULL, C_NULL, metis_options, objval, part)
         err == METIS_OK || error("METIS_PartGraphKWay returned error code $err")
-        objval[1], part .+ one(Cint)
+        objval[1], part
     end
 end

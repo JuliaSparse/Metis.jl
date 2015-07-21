@@ -12,8 +12,8 @@ end
 function metisform(al::Graphs.GenericAdjacencyList)
     !Graphs.is_directed(al) || error("Metis functions require undirected graphs")
     @compat isa(al.vertices,UnitRange) && first(al.vertices) == 1 || error("Vertices must be numbered from 1")
-    @compat length(al.adjlist), round(Int32, cumsum(vcat(0, map(length, al.adjlist)))),
-        round(Int32, flatten(al.adjlist)) .- one(Int32)
+    @compat length(al.adjlist), round(Int32, cumsum(vcat(1, map(length, al.adjlist)))),
+        round(Int32, flatten(al.adjlist))
 end
 
 ## Create the 0-based column pointers and row indices of a symmetric sparse matrix
@@ -23,14 +23,17 @@ function metisform(m::SparseMatrixCSC)
 
     ## copy m.rowval and m.colptr to Int32 vectors dropping diagonal elements
     adjncy = @compat sizehint!(Cint[],nnz(m))
-    xadj = zeros(Cint,m.n+1)
+    xadj = Array(Cint,m.n+1)
+    xadj[1] = 1
+    rv = m.rowval
+    cp = m.colptr
     for j in 1:m.n
         count = 0
-        for k in m.colptr[j] : (m.colptr[j+1] - 1)
-            i = m.rowval[k]
+        for k in cp[j]:cp[j+1]-1
+            i = rv[k]
             if i != j
                 count += 1
-                push!(adjncy,i-1)
+                push!(adjncy,i)
             end
         end
         xadj[j+1] = xadj[j] + count
@@ -43,7 +46,7 @@ function metisform(g::LightGraphs.Graph)
     xadj = zeros(Int32,n + 1)
     adjncy = sizehint!(Int32[],2*ne(g))
     for i in 1:n
-        ein = [convert(Int32,dst(x)-1) for x in LightGraphs.out_edges(g, i)]
+        ein = [convert(Int32,dst(x)) for x in LightGraphs.out_edges(g, i)]
         xadj[i + 1] = xadj[i] + length(ein)
         append!(adjncy,ein)
     end
