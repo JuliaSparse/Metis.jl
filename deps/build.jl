@@ -13,8 +13,7 @@ end
     if Pkg.installed("Homebrew") === nothing
         error("Homebrew package not installed, please run Pkg.add(\"Homebrew\")")  end
     using Homebrew
-    Homebrew.add("homebrew/science/metis")
-    provides(Homebrew.HB, "metis", libmetis, os = :Darwin)
+    provides(Homebrew.HB, "homebrew/science/metis", libmetis, os = :Darwin)
 end
 
 provides(AptGet, "libmetis5", libmetis)
