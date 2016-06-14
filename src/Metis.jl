@@ -118,7 +118,7 @@ Outputs:
         _vsize = (length(vsize)>0) ? round(Cint, vsize) : C_NULL
         _tpwgts = (length(tpwgts)>0) ? convert(Array{Cfloat}, tpwgts) : C_NULL
         _ubvec = (length(ubvec)>0) ? convert(Array{Cfloat}, ubvec) : C_NULL
-        _options = (length(options)>0) ? convert(Cint, options) : C_NULL
+        _options = (length(options)>0) ? convert(Array{Cint}, options) : C_NULL
 
         # Allocate memory for outputs
         part = Array(Cint, n)
