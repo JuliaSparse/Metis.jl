@@ -68,7 +68,7 @@ const mdual       = Metis.testgraph("mdual")
 const path_Graphs = Metis.testgraph("path")
 
 # Construct LightGraphs.Graph examples
-const tutte            = LightGraphs.TutteGraph()
+const tutte            = LightGraphs.Datasets.TutteGraph()
 const path_LightGraphs = LightGraphs.Graph(LightGraphs.PathDiGraph(8))
 
 # Vertex weights for path graph and wheel graph
