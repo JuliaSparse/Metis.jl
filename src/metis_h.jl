@@ -9,6 +9,19 @@ const METIS_ERROR_INPUT  = Cint(-2) # Returned due to erroneous inputs and/or op
 const METIS_ERROR_MEMORY = Cint(-3) # Returned due to insufficient memory
 const METIS_ERROR        = Cint(-4) # Some other errors
 
+struct MetisError <: Exception code::Cint end
+function Base.showerror(io::IO, me::MetisError)
+    print(io, "MetisError: ")
+    if me.code == Metis.METIS_ERROR_INPUT
+        print(io, "input error")
+    elseif me.code == Metis.METIS_ERROR_MEMORY
+        print(io, "could not allocate the required memory")
+    else
+        print(io, "unknown error")
+    end
+    print(io, " (error code $(me.code)).")
+end
+
 ## Operation type codes
 const METIS_OP_PMETIS = Cint(0)
 const METIS_OP_KMETIS = Cint(1)
@@ -82,3 +95,118 @@ const METIS_DBG_MEMORY     = Cint(2048) # Show info related to wspace allocation
 const METIS_OBJTYPE_CUT  = Cint(0)
 const METIS_OBJTYPE_VOL  = Cint(1)
 const METIS_OBJTYPE_NODE = Cint(2)
+
+
+## Metis C API
+# function METIS_PartGraphRecursive(nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts,
+#                                   tpwgts, ubvec, options, edgecut, part)
+#     r = ccall((:METIS_PartGraphRecursive, libmetis), Cint,
+#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ptr{idx_t}, Ref{idx_t}, Ptr{real_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ptr{idx_t}),
+#               nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts, tpwgts, ubvec,
+#               options, edgecut, part)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_PartGraphKway(nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts,
+#                              tpwgts, ubvec, options, edgecut, part)
+#     r = ccall((:METIS_PartGraphKway, libmetis), Cint,
+#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ptr{idx_t}, Ref{idx_t}, Ptr{real_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ptr{idx_t}),
+#               nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts, tpwgts, ubvec,
+#               options, edgecut, part)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_MeshToDual(ne, nn, eptr, eind, ncommon, numflag, r_xadj, r_adjncy)
+#     r = ccall((:METIS_MeshToDual, libmetis), Cint,
+#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ref{idx_t}, Ref{idx_t},
+#                Ptr{idx_t}, Ptr{idx_t}),
+#               ne, nn, eptr, eind, ncommon, numflag, r_xadj, r_adjncy)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_MeshToNodal(ne, nn, eptr, eind, numflag, r_xadj, r_adjncy)
+#     r = ccall((:METIS_MeshToNodal, libmetis), Cint,
+#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ref{idx_t}, Ptr{idx_t},
+#                Ptr{idx_t}),
+#               ne, nn, eptr, eind, numflag, r_xadj, r_adjncy)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_PartMeshNodal(ne, nn, eptr, eind, vwgt, vsize, nparts, tpwgts, options,
+#                              objval, epart, npart)
+#     r = ccall((:METIS_PartMeshNodal, libmetis), Cint,
+#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ref{idx_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}),
+#               ne, nn, eptr, eind, vwgt, vsize, nparts, tpwgts, options, objval, epart,
+#               npart)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_PartMeshDual(ne, nn, eptr, eind, vwgt, vsize, ncommon, nparts, tpwgts,
+#                             options, objval, epart, npart)
+#     r = ccall((:METIS_PartMeshDual, libmetis), Cint,
+#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ref{idx_t}, Ref{idx_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ptr{idx_t}),
+#               ne, nn, eptr, eind, vwgt, vsize, ncommon, nparts, tpwgts, options, objval,
+#               epart, npart)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_NodeND(nvtxs, xadj, adjncy, vwgt, options, perm, iperm)
+#     r = ccall((:METIS_NodeND, libmetis), Cint,
+#               (Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ptr{idx_t}),
+#               nvtxs, xadj, adjncy, vwgt, options, perm, iperm)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_Free(ptr)
+#     r = ccall((:METIS_Free, libmetis), Cint, (Ptr{idx_t},), ptr)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_SetDefaultOptions(options)
+#     r = ccall((:METIS_SetDefaultOptions, libmetis), Cint, (Ptr{idx_t},), options)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_NodeNDP(nvtxs, xadj, adjncy, vwgt, npes, options, perm, iperm, sizes)
+#     r = ccall((:METIS_NodeNDP, libmetis), Cint,
+#               (Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}),
+#               nvtxs, xadj, adjncy, vwgt, npes, options, perm, iperm, sizes)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_ComputeVertexSeparator(nvtxs, xadj, adjncy, vwgt, options, sepsize, part)
+#     r = ccall((:METIS_ComputeVertexSeparator, libmetis), Cint,
+#               (Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ptr{idx_t}),
+#               nvtxs, xadj, adjncy, vwgt, options, sepsize, part)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end
+
+# function METIS_NodeRefine(nvtxs, xadj, vwgt, adjncy, where, hmarker, ubfactor)
+#     r = ccall((:METIS_NodeRefine, libmetis), Cint,
+#               (Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+#                Ptr{real_t}),
+#               nvtxs, xadj, vwgt, adjncy, where, hmarker, ubfactor)
+#     r == METIS_OK || throw(MetisError(r))
+#     return
+# end

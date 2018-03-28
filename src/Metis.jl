@@ -12,4 +12,8 @@ let depsfile = joinpath(@__DIR__, "..", "deps", "deps.jl")
     end
 end
 
+# Metis C API
+include("metis_h.jl")
+const options = fill(Cint(-1), METIS_NOPTIONS)
+
 end # module
