@@ -3,6 +3,7 @@ __precompile__(true)
 module Metis
 
 import Compat: undef
+import LightGraphs
 
 # Load libmetis with BinaryProvider
 __init__() = check_deps()
@@ -58,6 +59,30 @@ function graph(G::SparseMatrixCSC)
             end
         end
         xadj[j+1] = xadj[j] + n_rows
+    end
+    resize!(adjncy, adjncy_i)
+    return Graph(idx_t(N), xadj, adjncy)
+end
+
+"""
+    graph(G::LightGraphs.AbstractSimpleGraph)
+
+Construct the 1-based CSR representation of the `LightGraphs` graph `G`.
+"""
+function graph(G::LightGraphs.AbstractSimpleGraph)
+    N = LightGraphs.nv(G)
+    xadj = Vector{idx_t}(undef, N+1)
+    xadj[1] = 1
+    adjncy = Vector{idx_t}(undef, 2*LightGraphs.ne(G))
+    adjncy_i = 0
+    for j in 1:N
+        ne = 0
+        for i in LightGraphs.outneighbors(G, j)
+            ne += 1
+            adjncy_i += 1
+            adjncy[adjncy_i] = i
+        end
+        xadj[j+1] = xadj[j] + ne
     end
     resize!(adjncy, adjncy_i)
     return Graph(idx_t(N), xadj, adjncy)
