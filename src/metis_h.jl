@@ -163,14 +163,14 @@ const METIS_OBJTYPE_NODE = Cint(2)
 #     return
 # end
 
-# function METIS_NodeND(nvtxs, xadj, adjncy, vwgt, options, perm, iperm)
-#     r = ccall((:METIS_NodeND, libmetis), Cint,
-#               (Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
-#                Ptr{idx_t}),
-#               nvtxs, xadj, adjncy, vwgt, options, perm, iperm)
-#     r == METIS_OK || throw(MetisError(r))
-#     return
-# end
+function METIS_NodeND(nvtxs, xadj, adjncy, vwgt, options, perm, iperm)
+    r = ccall((:METIS_NodeND, libmetis), Cint,
+              (Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+               Ptr{idx_t}),
+              nvtxs, xadj, adjncy, vwgt, options, perm, iperm)
+    r == METIS_OK || throw(MetisError(r))
+    return
+end
 
 # function METIS_Free(ptr)
 #     r = ccall((:METIS_Free, libmetis), Cint, (Ptr{idx_t},), ptr)
