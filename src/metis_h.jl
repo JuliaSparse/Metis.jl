@@ -98,29 +98,29 @@ const METIS_OBJTYPE_NODE = Cint(2)
 
 
 ## Metis C API
-# function METIS_PartGraphRecursive(nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts,
-#                                   tpwgts, ubvec, options, edgecut, part)
-#     r = ccall((:METIS_PartGraphRecursive, libmetis), Cint,
-#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
-#                Ptr{idx_t}, Ref{idx_t}, Ptr{real_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t},
-#                Ptr{idx_t}),
-#               nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts, tpwgts, ubvec,
-#               options, edgecut, part)
-#     r == METIS_OK || throw(MetisError(r))
-#     return
-# end
+function METIS_PartGraphRecursive(nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts,
+                                  tpwgts, ubvec, options, edgecut, part)
+    r = ccall((:METIS_PartGraphRecursive, libmetis), Cint,
+              (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+               Ptr{idx_t}, Ref{idx_t}, Ptr{real_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t},
+               Ptr{idx_t}),
+              nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts, tpwgts, ubvec,
+              options, edgecut, part)
+    r == METIS_OK || throw(MetisError(r))
+    return
+end
 
-# function METIS_PartGraphKway(nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts,
-#                              tpwgts, ubvec, options, edgecut, part)
-#     r = ccall((:METIS_PartGraphKway, libmetis), Cint,
-#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
-#                Ptr{idx_t}, Ref{idx_t}, Ptr{real_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t},
-#                Ptr{idx_t}),
-#               nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts, tpwgts, ubvec,
-#               options, edgecut, part)
-#     r == METIS_OK || throw(MetisError(r))
-#     return
-# end
+function METIS_PartGraphKway(nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts,
+                             tpwgts, ubvec, options, edgecut, part)
+    r = ccall((:METIS_PartGraphKway, libmetis), Cint,
+              (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+               Ptr{idx_t}, Ref{idx_t}, Ptr{real_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t},
+               Ptr{idx_t}),
+              nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, nparts, tpwgts, ubvec,
+              options, edgecut, part)
+    r == METIS_OK || throw(MetisError(r))
+    return
+end
 
 # function METIS_MeshToDual(ne, nn, eptr, eind, ncommon, numflag, r_xadj, r_adjncy)
 #     r = ccall((:METIS_MeshToDual, libmetis), Cint,

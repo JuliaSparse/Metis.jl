@@ -104,4 +104,30 @@ function permutation(G::Graph)
     return perm, iperm
 end
 
+"""
+    Metis.partition(G, n; alg = :KWAY)
+
+Partition the graph `G` in `n` parts.
+The partition algorithm is defined by the `alg` keyword:
+ - :KWAY: multilevel k-way partitioning
+ - :RECURSIVE: multilevel recursive bisection
+"""
+partition(G, nparts; alg = :KWAY) = partition(graph(G), nparts, alg = alg)
+
+function partition(G::Graph, nparts::Integer; alg = :KWAY)
+    part = Vector{idx_t}(undef, G.nvtxs)
+    vwgt = isdefined(G, :vwgt) ? G.vwgt : C_NULL
+    edgecut = fill(idx_t(0), 1)
+    if alg === :RECURSIVE
+        METIS_PartGraphRecursive(G.nvtxs, idx_t(1), G.xadj, G.adjncy, vwgt, C_NULL, C_NULL,
+                                 idx_t(nparts), C_NULL, C_NULL, options, edgecut, part)
+    elseif alg === :KWAY
+        METIS_PartGraphKway(G.nvtxs, idx_t(1), G.xadj, G.adjncy, vwgt, C_NULL, C_NULL,
+                            idx_t(nparts), C_NULL, C_NULL, options, edgecut, part)
+    else
+        throw(ArgumentError("unknown algorithm $(repr(alg))"))
+    end
+    return part
+end
+
 end # module
