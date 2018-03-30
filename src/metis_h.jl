@@ -193,14 +193,14 @@ end
 #     return
 # end
 
-# function METIS_ComputeVertexSeparator(nvtxs, xadj, adjncy, vwgt, options, sepsize, part)
-#     r = ccall((:METIS_ComputeVertexSeparator, libmetis), Cint,
-#               (Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
-#                Ptr{idx_t}),
-#               nvtxs, xadj, adjncy, vwgt, options, sepsize, part)
-#     r == METIS_OK || throw(MetisError(r))
-#     return
-# end
+function METIS_ComputeVertexSeparator(nvtxs, xadj, adjncy, vwgt, options, sepsize, part)
+    r = ccall((:METIS_ComputeVertexSeparator, libmetis), Cint,
+              (Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+               Ptr{idx_t}),
+              nvtxs, xadj, adjncy, vwgt, options, sepsize, part)
+    r == METIS_OK || throw(MetisError(r))
+    return
+end
 
 # function METIS_NodeRefine(nvtxs, xadj, vwgt, adjncy, where, hmarker, ubfactor)
 #     r = ccall((:METIS_NodeRefine, libmetis), Cint,

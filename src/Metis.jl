@@ -130,4 +130,23 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
     return part
 end
 
+"""
+    Metis.separator(G)
+
+Compute a vertex separator of the graph `G`.
+"""
+separator(G) = separator(graph(G))
+
+function separator(G::Graph)
+    part = Vector{idx_t}(undef, G.nvtxs)
+    sepsize = fill(idx_t(0), 1)
+    vwgt = isdefined(G, :vwgt) ? G.vwgt : C_NULL
+    # METIS_ComputeVertexSeparator segfaults with 1-based indexing
+    xadj = G.xadj .- idx_t(1)
+    adjncy = G.adjncy .- idx_t(1)
+    METIS_ComputeVertexSeparator(G.nvtxs, xadj, adjncy, vwgt, options, sepsize, part)
+    part .+= 1
+    return part
+end
+
 end # module
