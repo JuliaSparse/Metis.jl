@@ -26,8 +26,8 @@ module Metis
     function nodeND(x,verbose::Integer=0)
         n,xadj,adjncy = metisform(x)
         metis_options[METIS_OPTION_DBGLVL] = verbose
-        perm = Array(Cint, n)
-        iperm = Array(Cint, n)
+        perm = Array{Cint}(n)
+        iperm = Array{Cint}(n)
         err = ccall((:METIS_NodeND,libmetis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
                      Ptr{Cint}, Ptr{Cint}, Ptr{Cint}),
@@ -41,7 +41,7 @@ module Metis
 
         metis_options[METIS_OPTION_DBGLVL] = verbose
         sepSize = zeros(Cint, 1)
-        part = Array(Cint, n)
+        part = Array{Cint}(n)
 
         err = ccall((:METIS_ComputeVertexSeparator,libmetis), Cint,
                     (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}, Ptr{Cint},
@@ -59,7 +59,7 @@ module Metis
 
     function partGraphKway(x, nparts::Integer)
         n, xadj, adjncy = metisform(x)
-        part = Array(Cint, n)
+        part = Array{Cint}(n)
         objval = zeros(Cint, 1)
         err = ccall((:METIS_PartGraphKway,libmetis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
@@ -73,15 +73,15 @@ module Metis
 
     function partGraphRecursive(x, nparts::Integer)
         n, xadj, adjncy = metisform(x)
-        part = Array(Int32, n)
+        part = Array{Int32}(n)
         objval = zeros(Int32, 1)
-        err = ccall((:METIS_PartGraphKway,libmetis), Int32,
+        err = ccall((:METIS_PartGraphRecursive,libmetis), Int32,
                     (Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32}, Ptr{Int32},
                      Ptr{Int32}, Ptr{Int32}, Ptr{Int32}),
                     &n, &one(Int32), xadj, adjncy, C_NULL, C_NULL, C_NULL, &convert(Int32,nparts),
                     C_NULL, C_NULL, metis_options, objval, part)
-        err == METIS_OK || error("METIS_PartGraphKWay returned error code $err")
+        err == METIS_OK || error("METIS_PartGraphRecursive returned error code $err")
         objval[1], part .+ one(Cint)
     end
 end
