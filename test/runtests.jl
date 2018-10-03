@@ -1,10 +1,11 @@
 using Metis
-using Compat.Test
-using Compat.Random
+using Random
+using Test
+using SparseArrays
 import LightGraphs
 
 @testset "Metis.permutation" begin
-    srand(0)
+    Random.seed!(0)
     S = sprand(10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
     perm, iperm = Metis.permutation(S)
     @test isperm(perm)
@@ -13,7 +14,7 @@ import LightGraphs
 end
 
 @testset "Metis.partition" begin
-    srand(0)
+    Random.seed!(0)
     S = sprand(10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
     T = LightGraphs.TutteGraph()
     for G in (S, T), alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
@@ -24,7 +25,7 @@ end
 end
 
 @testset "Metis.separator" begin
-    srand(0)
+    Random.seed!(0)
     S = sprand(10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
     T = LightGraphs.TutteGraph()
     for G in (S, T)

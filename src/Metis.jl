@@ -2,7 +2,9 @@ __precompile__(true)
 
 module Metis
 
-import Compat: undef
+using SparseArrays
+using LinearAlgebra
+using Libdl
 import LightGraphs
 
 # Load libmetis with BinaryProvider
@@ -37,12 +39,16 @@ struct Graph
 end
 
 """
-    Metis.graph(G::SparseMatrixCSC)
+    Metis.graph(G::SparseMatrixCSC; check_hermitian=true)
 
 Construct the 1-based CSR representation of the sparse matrix `G`.
+If `check_hermitian` is `false` the matrix is not checked for being hermitian
+before constructing the graph.
 """
-function graph(G::SparseMatrixCSC)
-    ishermitian(G) || throw(ArgumentError("matrix must be Hermitian"))
+function graph(G::SparseMatrixCSC; check_hermitian=true)
+    if check_hermitian
+        ishermitian(G) || throw(ArgumentError("matrix must be Hermitian"))
+    end
     N = size(G, 1)
     xadj = Vector{idx_t}(undef, N+1)
     xadj[1] = 1

@@ -3,3 +3,4 @@
 *.jl.mem
 deps/usr
 deps/deps.jl
+deps/build.log
