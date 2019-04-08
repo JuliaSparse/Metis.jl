@@ -1,6 +1,0 @@
-julia 0.3
-Graphs 0.5.5
-BinDeps
-Compat
-LightGraphs
-@windows WinRPM
