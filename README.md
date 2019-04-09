@@ -1,6 +1,8 @@
-# Metis.jl
+# Metis
 
-[![][travis-img]][travis-url] [![][codecov-img]][codecov-url]
+| **Build Status**                                                                                |
+|:----------------------------------------------------------------------------------------------- |
+| [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] |
 
 *Metis.jl* is a Julia wrapper to the [Metis library][metis-url] which is a
 library for partitioning unstructured graphs, partitioning meshes, and
@@ -63,11 +65,14 @@ all with the same arguments and argument order as described in the
 [Metis manual][metis-manual-url].
 
 
-[travis-img]: https://travis-ci.org/fredrikekre/Metis.jl.svg?branch=master
-[travis-url]: https://travis-ci.org/fredrikekre/Metis.jl
+[travis-img]: https://travis-ci.org/JuliaSparse/Metis.jl.svg?branch=master
+[travis-url]: https://travis-ci.org/JuliaSparse/Metis.jl
 
-[codecov-img]: http://codecov.io/github/fredrikekre/Metis.jl/coverage.svg?branch=master
-[codecov-url]: http://codecov.io/github/fredrikekre/Metis.jl?branch=master
+[appveyor-img]: https://ci.appveyor.com/api/projects/status/76i2pnyq8495sgfa/branch/master?svg=true
+[appveyor-url]: https://ci.appveyor.com/project/JuliaSparse/metis-jl/branch/master
+
+[codecov-img]: http://codecov.io/github/JuliaSparse/Metis.jl/coverage.svg?branch=master
+[codecov-url]: http://codecov.io/github/JuliaSparse/Metis.jl?branch=master
 
 [metis-url]: http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
 [metis-manual-url]: http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf
