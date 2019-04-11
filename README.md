@@ -1,56 +1,88 @@
-#  [Julia](http://julialang.org) interface to the Metis graph-partitioning algorithms
+# Metis
 
-[![Build Status](https://travis-ci.org/JuliaSparse/Metis.jl.svg?branch=master)](https://travis-ci.org/JuliaSparse/Metis.jl)
-[![Coverage Status](https://coveralls.io/repos/dmbates/Metis.jl/badge.png?branch=master)](https://coveralls.io/r/dmbates/Metis.jl?branch=master)
-[![Metis](http://pkg.julialang.org/badges/Metis_release.svg)](http://pkg.julialang.org/?pkg=Metis&ver=release)
+| **Build Status**                                                                                |
+|:----------------------------------------------------------------------------------------------- |
+| [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] |
 
-## Installation
+*Metis.jl* is a Julia wrapper to the [Metis library][metis-url] which is a
+library for partitioning unstructured graphs, partitioning meshes, and
+computing fill-reducing orderings of sparse matrices.
 
-```julia
-Pkg.add("Metis")
-```
+## Graph partitioning
+`Metis.partition` calculates graph partitions. As an example, here we partition
+a small graph into two, three and four parts, and visualize the result:
 
-Adding the package will install the Metis library itself on OS-X, Windows and Linux systems using `apt` or `yum`.
+| ![][partition2-url]     | ![][partition3-url]     | ![][partition4-url]     |
+|:----------------------- |:----------------------- |:----------------------- |
+| `Metis.partition(g, 2)` | `Metis.partition(g, 3)` | `Metis.partition(g, 4)` |
 
-On other operating systems this package will download, configure and install metis-5.1.0 in the directory
-```julia
-Pkg.dir("Metis", "deps")
-```
-Configuration requires Cmake version 2.8 or later.
+`Metis.partition` calls `METIS_PartGraphKway` or `METIS_PartGraphRecursive` from the Metis
+C API, depending on the optional keyword argument `alg`:
+ - `alg = :KWAY`:  multilevel k-way partitioning (`METIS_PartGraphKway`).
+ - `alg = :RECURSIVE`:  multilevel recursive bisection (`METIS_PartGraphRecursive`).
 
-## Functions
+## Vertex separator
+`Metis.separator` calculates a [vertex separator](https://en.wikipedia.org/wiki/Vertex_separator)
+of a graph. `Metis.separator` calls `METIS_ComputeVertexSeparator` from the Metis C API.
+As an example, here we calculate a vertex separator (green) of a small graph:
 
-The names of the available Julia functions are those from the Metis API
+| ![][separator-url]   |
+|:-------------------- |
+| `Metis.separator(g)` |
 
-* `nodeND(al)` : recursively bisect the undirected graph implied by the adjacency list, 
-  `al`, and return the fill-reducing permutation that results
-* `nodeND(m)` : recursively bisect the undirected graph of the nonzero structure of the 
-  symmetric sparse matrix, `m`, and return the fill-reducing permutation
-* `vertexSep(al)`: compute a vertex separator for the adjacency list, `al`, of an
-  undirected graph
-* `vertexSep(m)`: compute a vertex separator for the undirected graph of the nonzero 
-  structure of the symmetric sparse matrix, `m`
-* `partGraphKway(al, nparts::Integer)`: partition a graph given as an adjacency list, `al`, into nparts 
-* `partGraphRecursive(al, nparts::Integer)`: partition a graph given as an adjacency list, `al`, into nparts 
-
-## Examples
-
-The function `Metis.testgraph` can be used to read one of the sample graphs available in the `graphs` directory of `metis-5.1.0`.  These graphs correspond to 2D and 3D finite element meshes.
-
-`4elt`
-	: a smaller sample graph (15606 vertices, 45878 edges)
-`copter2` 
-	: a medium size sample graph (55476 vertices, 352238 edges)
-`mdual`
-	: a larger sample graph (258569 vertices, 513132 edges)
+## Fill reducing permutation
+`Metis.permutation` calculates the fill reducing permutation
+for a sparse matrices. `Metis.permutation` calls `METIS_NodeND` from the Metis
+C API. As an example, we calculate the fill reducing permutation
+for a sparse matrix `S` originating from a typical (small) FEM problem, and
+visualize the sparsity pattern for the original matrix and the permuted matrix:
 
 ```julia
-using Graphs, Metis
-copter2 = Metis.testgraph("copter2");
-perm, iperm = nodeND(copter2)
-sizes, part = vertexSep(copter2)
-objval, part = partGraphKway(copter2, 6)
-counts = zeros(Int, 6);
-for p in part counts[p] += 1 end
-println(counts)
+perm, iperm = Metis.permutation(S)
 ```
+
+| <pre>⠛⣤⢠⠄⠀⣌⠃⢠⠀⠐⠈⠀⠀⠀⠀⠉⠃⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠂⠔⠀<br>⠀⠖⠻⣦⡅⠘⡁⠀⠀⠀⠀⠐⠀⠁⠀⢂⠀⠀⠠⠀⠀⠀⠁⢀⠀⢀⠀⠀⠄⢣<br>⡀⢤⣁⠉⠛⣤⡡⢀⠀⠂⠂⠀⠂⠃⢰⣀⠀⠔⠀⠀⠀⠀⠀⠀⠀⠀⠀⠄⠄⠀<br>⠉⣀⠁⠈⠁⢊⠱⢆⡰⠀⠈⠀⠀⠀⠀⢈⠉⡂⠀⠐⢀⡞⠐⠂⠀⠄⡀⠠⠂⠀<br>⢀⠀⠀⠀⠠⠀⠐⠊⠛⣤⡔⠘⠰⠒⠠⠀⡈⠀⠀⠀⠉⠉⠘⠂⠀⠀⠀⡐⢈⠀<br>⠂⠀⢀⠀⠈⠀⠂⠀⣐⠉⢑⣴⡉⡈⠁⡂⠒⠀⠁⢠⡄⠀⠐⠀⠠⠄⠀⠁⢀⡀<br>⠀⠀⠄⠀⠬⠀⠀⠀⢰⠂⡃⠨⣿⣿⡕⠂⠀⠨⠌⠈⠆⠀⠄⡀⠑⠀⠀⠘⠀⠀<br>⡄⠀⠠⢀⠐⢲⡀⢀⠀⠂⠡⠠⠱⠉⢱⢖⡀⠀⡈⠃⠀⠀⠀⢁⠄⢀⣐⠢⠀⠀<br>⠉⠀⠀⠀⢀⠄⠣⠠⠂⠈⠘⠀⡀⡀⠀⠈⠱⢆⣰⠠⠰⠐⠐⢀⠀⢀⢀⠀⠌⠀<br>⠀⠀⠀⠂⠀⠀⢀⠀⠀⠀⠁⣀⡂⠁⠦⠈⠐⡚⠱⢆⢀⢀⠡⠌⡀⡈⠸⠁⠂⠀<br>⠀⠀⠀⠀⠀⠀⣠⠴⡇⠀⠀⠉⠈⠁⠀⠀⢐⠂⠀⢐⣻⣾⠡⠀⠈⠀⠄⠀⡉⠄<br>⠀⠀⠁⢀⠀⠀⠰⠀⠲⠀⠐⠀⠀⠡⠄⢀⠐⢀⡁⠆⠁⠂⠱⢆⡀⣀⠠⠁⠉⠇<br>⣀⠀⠀⢀⠀⠀⠀⠄⠀⠀⠀⠆⠑⠀⠀⢁⠀⢀⡀⠨⠂⠀⠀⢨⠿⢇⠀⡸⠀⢀<br>⠠⠀⠀⠀⠀⠄⠀⡈⢀⠠⠄⠀⣀⠀⠰⡘⠀⠐⠖⠂⠀⠁⠄⠂⣀⡠⠻⢆⠄⠃<br>⠐⠁⠤⣁⠀⠁⠈⠀⠂⠐⠀⠰⠀⠀⠀⠀⠂⠁⠈⠀⠃⠌⠧⠄⠀⢀⠤⠁⠱⢆</pre> | <pre>⣕⢝⠀⠀⢸⠔⡵⢊⡀⠂⠀⠀⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣑⠑<br>⠀⠀⠑⢄⠀⠳⠡⢡⣒⣃⢣⠯⠆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠌<br>⢒⠖⢤⡀⠑⢄⢶⡈⣂⠎⢎⠉⠩⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>⡱⢋⠅⣂⡘⠳⠻⢆⡥⣈⠆⡨⡩⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀<br>⠠⠈⠼⢸⡨⠜⡁⢫⣻⢞⢔⠀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⠠<br>⠀⠀⡭⡖⡎⠑⡈⡡⠐⠑⠵⣧⣜⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀<br>⠀⠁⠈⠁⠃⠂⠃⠊⠀⠘⠒⠙⠛⢄⠀⠀⢄⠀⠤⢠⠀⢄⢀⢀⠀⡀⠀⠀⢄⢄<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⢄⠊⠀⣂⠅⢓⣤⡄⠢⠠⠀⠌⠉⢀⢁<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⠊⠀⠑⢄⠁⣋⠀⢀⢰⢄⢔⢠⡖⢥⠀⠁<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣃⠌⠜⡥⢠⠛⣤⠐⣂⡀⠀⡀⡁⠍⠤⠒⠀<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢄⠙⣴⠀⢀⠰⢠⠿⣧⡅⠁⠂⢂⠂⠋⢃⢀<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢐⠠⡉⠐⢖⠀⠈⠅⠉⢕⢕⠝⠘⡒⠠⠀⠀<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⠀⠂⠐⣑⠄⠨⠨⢀⣓⠁⣕⢝⡥⢉⠁⠠<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡆⠁⠜⣍⠃⡅⡬⠀⠘⡈⡅⢋⠛⣤⡅⠒<br>⢕⠘⡂⠄⠀⠀⠁⠀⠀⡂⠀⢠⠀⢕⠄⢐⠄⠀⠘⠀⠉⢐⠀⠀⠁⡀⢡⠉⢟⣵</pre> |
+|:---------------------- |:--------------------------------- |
+| `S` (5% stored values) | `S[perm,perm]` (5% stored values) |
+
+We can also visualize the sparsity pattern of the Cholesky factorization of
+the same matrix. It is here clear that using the fill reducing permutation
+results in a sparser factorization:
+
+|<pre>⠙⢤⢠⡄⠀⣜⠃⢠⠀⠐⠘⠀⠀⠀⠀⠛⠃⠀⠀⠀⠀⠀⠀⠀⠀⠘⠀⠂⡔⠀<br>⠀⠀⠙⢦⡇⠾⡃⠰⠀⠀⠀⠐⠀⠃⠀⢂⠀⠀⠠⠀⠀⠀⠃⢀⠀⢀⠀⠀⠆⢣<br>⠀⠀⠀⠀⠙⢼⣣⢠⠀⣂⣂⢘⡂⡃⢰⣋⡀⣔⢠⠀⠀⠀⡃⠈⠀⢈⠀⡄⣄⡋<br>⠀⠀⠀⠀⠀⠀⠑⢖⡰⠉⠉⠈⠁⠁⢘⢙⠉⡊⢐⢐⢀⣞⠱⠎⠀⠌⡀⡣⡊⠉<br>⠀⠀⠀⠀⠀⠀⠀⠀⠙⢤⣴⢸⣴⡖⢠⣤⡜⢣⠀⠀⠛⠛⡜⠂⠀⢢⠀⡔⢸⡄<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢼⣛⣛⣛⣛⣓⣚⡃⢠⣖⣒⣓⢐⢠⣜⠀⡃⢘⣓<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⢸⣿⣿⣿⣾⣿⣿⠀⣿⢸⣿<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣒⣿⣺⣿<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⣤⣿⣼⣿<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⣿<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿</pre> | <pre>⠑⢝⠀⠀⢸⠔⡵⢊⡀⡂⠀⠀⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣕⢕<br>⠀⠀⠑⢄⠀⠳⠡⢡⣒⣃⢣⠯⠆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠌<br>⠀⠀⠀⠀⠑⢄⢶⡘⣂⡎⢎⡭⠯⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠶⠴<br>⠀⠀⠀⠀⠀⠀⠙⢎⣷⣏⢷⣯⡫⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠛⡛<br>⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⢼⣧⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠤⡤<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⢿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣭⣯<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢄⠀⠀⢄⠀⠤⢠⠀⢄⢀⢀⠀⡀⠀⠀⢟⢟<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⢄⠊⠀⣂⠅⢓⣤⡄⠢⠠⠀⠌⠉⢀⢁<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⢄⠉⣋⠀⢁⢰⢔⢔⢠⡖⢥⠁⠃<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢤⠘⣶⡂⠠⡀⣡⠭⣤⢓⢗<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢷⡇⡇⣢⣢⠂⣯⣷⣶<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⢕⢟⢝⣒⠭⠭⡭<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠑⢝⣿⣿⡭⡯<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿<br>⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿</pre> |
+|:----------------------------- |:--------------------------------------- |
+| `chol(S)` (16% stored values) | `chol(S[perm,perm])` (6% stored values) |
+
+## Direct access to the Metis C API
+For more fine tuned usage of Metis consider calling the C API directly.
+The following functions are currently exposed:
+- `METIS_PartGraphRecursive`
+- `METIS_PartGraphKway`
+- `METIS_ComputeVertexSeparator`
+- `METIS_NodeND`
+
+all with the same arguments and argument order as described in the
+[Metis manual][metis-manual-url].
+
+
+[travis-img]: https://travis-ci.org/JuliaSparse/Metis.jl.svg?branch=master
+[travis-url]: https://travis-ci.org/JuliaSparse/Metis.jl
+
+[appveyor-img]: https://ci.appveyor.com/api/projects/status/76i2pnyq8495sgfa/branch/master?svg=true
+[appveyor-url]: https://ci.appveyor.com/project/JuliaSparse/metis-jl/branch/master
+
+[codecov-img]: http://codecov.io/github/JuliaSparse/Metis.jl/coverage.svg?branch=master
+[codecov-url]: http://codecov.io/github/JuliaSparse/Metis.jl?branch=master
+
+[metis-url]: http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
+[metis-manual-url]: http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf
+
+[S-url]: https://user-images.githubusercontent.com/11698744/38196722-dd9877c2-3684-11e8-8c02-a767604824d1.png
+[Spp-url]: https://user-images.githubusercontent.com/11698744/38196723-ddb62fba-3684-11e8-89ff-181128644294.png
+[C-url]: https://user-images.githubusercontent.com/11698744/38196720-dd5dd748-3684-11e8-8413-a52d336abe49.png
+[Cpp-url]: https://user-images.githubusercontent.com/11698744/38196721-dd7ac16e-3684-11e8-8a35-761e97d11235.png
+[partition2-url]: https://user-images.githubusercontent.com/11698744/38196819-65950f1e-3685-11e8-8db4-6aa9563bbd62.png
+[partition3-url]: https://user-images.githubusercontent.com/11698744/38196820-65b11c9a-3685-11e8-95a0-b3b280359b31.png
+[partition4-url]: https://user-images.githubusercontent.com/11698744/38196821-65ddc1dc-3685-11e8-8eb1-ce44ef1646f3.png
+[separator-url]: https://user-images.githubusercontent.com/11698744/38196822-65fffc34-3685-11e8-9575-4dba41faec41.png
+[vertex-separator-url]: https://en.wikipedia.org/wiki/Vertex_separator

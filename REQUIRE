@@ -1,6 +1,3 @@
-julia 0.3
-Graphs 0.5.5
-BinDeps
-Compat
+julia 1
+BinaryProvider
 LightGraphs
-@windows WinRPM
