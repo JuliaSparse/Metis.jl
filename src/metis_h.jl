@@ -122,14 +122,14 @@ function METIS_PartGraphKway(nvtxs, ncon, xadj, adjncy, vwgt, vsize, adjwgt, npa
     return
 end
 
-# function METIS_MeshToDual(ne, nn, eptr, eind, ncommon, numflag, r_xadj, r_adjncy)
-#     r = ccall((:METIS_MeshToDual, libmetis), Cint,
-#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ref{idx_t}, Ref{idx_t},
-#                Ptr{idx_t}, Ptr{idx_t}),
-#               ne, nn, eptr, eind, ncommon, numflag, r_xadj, r_adjncy)
-#     r == METIS_OK || throw(MetisError(r))
-#     return
-# end
+function METIS_MeshToDual(ne, nn, eptr, eind, ncommon, numflag, r_xadj, r_adjncy)
+    r = ccall((:METIS_MeshToDual, libmetis), Cint,
+              (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ref{idx_t}, Ref{idx_t},
+               Ptr{idx_t}, Ptr{idx_t}),
+              ne, nn, eptr, eind, ncommon, numflag, r_xadj, r_adjncy)
+    r == METIS_OK || throw(MetisError(r))
+    return
+end
 
 # function METIS_MeshToNodal(ne, nn, eptr, eind, numflag, r_xadj, r_adjncy)
 #     r = ccall((:METIS_MeshToNodal, libmetis), Cint,
@@ -172,11 +172,11 @@ function METIS_NodeND(nvtxs, xadj, adjncy, vwgt, options, perm, iperm)
     return
 end
 
-# function METIS_Free(ptr)
-#     r = ccall((:METIS_Free, libmetis), Cint, (Ptr{idx_t},), ptr)
-#     r == METIS_OK || throw(MetisError(r))
-#     return
-# end
+function METIS_Free(ptr)
+    r = ccall((:METIS_Free, libmetis), Cint, (Ptr{idx_t},), ptr)
+    r == METIS_OK || throw(MetisError(r))
+    return
+end
 
 # function METIS_SetDefaultOptions(options)
 #     r = ccall((:METIS_SetDefaultOptions, libmetis), Cint, (Ptr{idx_t},), options)

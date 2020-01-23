@@ -83,6 +83,67 @@ function graph(G::LightGraphs.AbstractSimpleGraph)
 end
 
 """
+    graph(elements::AbstractMatrix{<:Integer}, ncommon=1)
+
+Construct the 1-based CSR representation of the mesh described by the
+connectivity matrix `elements`.
+
+`elements[i,j]` contains the `i`-th node of the `j`-th element. Thus the size of
+the first dimension `elements` is equal to the number of nodes per element, and
+the size of the second dimension is the number of elements.
+
+The nodes are assumed to be numbered consecutively, starting from 1.
+"""
+function graph(elements::AbstractMatrix{<:Integer}, ncommon=1)
+    # Assume the number of nodes in the mesh is equal to the highest node
+    # number.
+    nnodes = maximum(elements)
+    # @show minimum(elements), maximum(elements)
+    # @show findall(x->x==0, elements)
+
+    # Number of nodes per element.
+    n_npe = size(elements, 1)
+
+    # Number of elements in the mesh.
+    ne = size(elements, 2)
+
+    # Get the element connectivity data in the form METIS needs.
+    eptr = convert(Array{Metis.idx_t}, collect(0:ne) .* n_npe)
+    eind = convert(Array{Metis.idx_t}, elements[:])
+
+    # With 1-based indexing, need to add 1 to eptr.
+    eptr .+= 1
+
+    # Create some pointers and stuff that will be allocated in the METIS library call.
+    ne = Metis.idx_t(ne)
+    nn = Metis.idx_t(nnodes)
+    ncommon = Metis.idx_t(ncommon)
+    num_flag = Metis.options[Metis.METIS_OPTION_NUMBERING]
+    xadj = [Ptr{Metis.idx_t}()]
+    adjncy = [Ptr{Metis.idx_t}()]
+
+    # Do it!
+    Metis.METIS_MeshToDual(ne, nn, eptr, eind, ncommon, num_flag, xadj, adjncy)
+
+    # Create a Julian copy of the xadj array. The length of xadj is one more
+    # than the number of graph verticies (here, the number of mesh elements).
+    xadj_out = copy(unsafe_wrap(Vector{Metis.idx_t}, xadj[1], ne+1))
+
+    # Free the METIS memory.
+    Metis.METIS_Free(xadj[1])
+
+    # Create a Julian copy of the adjncy array.  The length of adjncy is twice
+    # the number of graph edges. Turns out that's the last entry in xadj minus
+    # 1 if we're using one-based indices.
+    adjncy_out = copy(unsafe_wrap(Vector{Metis.idx_t}, adjncy[1], xadj_out[end]-1))
+
+    # Free the METIS memory.
+    Metis.METIS_Free(adjncy[1])
+
+    return Graph(ne, xadj_out, adjncy_out)
+end
+
+"""
     perm, iperm = Metis.permutation(G)
 
 Compute the fill reducing permutation `perm`
