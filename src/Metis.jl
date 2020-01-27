@@ -3,11 +3,12 @@ module Metis
 using SparseArrays
 using LinearAlgebra
 import LightGraphs
-using METIS_jll: libmetis
+# using METIS_jll: libmetis
+const libmetis = ENV["METIS_LIB"]
 
 # Metis C API
 include("metis_h.jl")
-const options = fill(Cint(-1), METIS_NOPTIONS)
+const options = fill(idx_t(-1), METIS_NOPTIONS)
 options[METIS_OPTION_NUMBERING] = 1
 
 # Julia interface
@@ -98,8 +99,6 @@ function graph(elements::AbstractMatrix{<:Integer}, ncommon=1)
     # Assume the number of nodes in the mesh is equal to the highest node
     # number.
     nnodes = maximum(elements)
-    # @show minimum(elements), maximum(elements)
-    # @show findall(x->x==0, elements)
 
     # Number of nodes per element.
     n_npe = size(elements, 1)
@@ -114,7 +113,7 @@ function graph(elements::AbstractMatrix{<:Integer}, ncommon=1)
     # With 1-based indexing, need to add 1 to eptr.
     eptr .+= 1
 
-    # Create some pointers and stuff that will be allocated in the METIS library call.
+    # Create some pointers and stuff that will be needed for the METIS library call.
     ne = Metis.idx_t(ne)
     nn = Metis.idx_t(nnodes)
     ncommon = Metis.idx_t(ncommon)
