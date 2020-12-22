@@ -51,7 +51,8 @@ function Mesh(mesh::TriangleMesh.TriMesh)
     nn = idx_t(mesh.n_point)
     eptr = Vector{idx_t}(undef, ne+1)
     eind = Vector{idx_t}(undef, length(mesh.cell))
-    eptr[:] = [idx_t(3*i) for i in 0:ne]
+    nn_per_elem, _ = size(mesh.cell)
+    eptr[:] = [idx_t(nn_per_elem*i) for i in 0:ne]
     eind[:] = reshape(mesh.cell, length(mesh.cell))
     return Mesh(ne, nn, eptr, eind)
 end
@@ -199,4 +200,3 @@ function mesh_partition(mesh::TriangleMesh.TriMesh, nparts::Integer; alg = :DUAL
 end
 
 end # module
-
