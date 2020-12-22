@@ -2,6 +2,7 @@ using Metis
 using Random
 using Test
 using SparseArrays
+import TriangleMesh
 import LightGraphs
 
 @testset "Metis.permutation" begin
