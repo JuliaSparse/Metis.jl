@@ -140,28 +140,28 @@ end
 #     return
 # end
 
-# function METIS_PartMeshNodal(ne, nn, eptr, eind, vwgt, vsize, nparts, tpwgts, options,
-#                              objval, epart, npart)
-#     r = ccall((:METIS_PartMeshNodal, libmetis), Cint,
-#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
-#                Ref{idx_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}),
-#               ne, nn, eptr, eind, vwgt, vsize, nparts, tpwgts, options, objval, epart,
-#               npart)
-#     r == METIS_OK || throw(MetisError(r))
-#     return
-# end
+function METIS_PartMeshNodal(ne, nn, eptr, eind, vwgt, vsize, nparts, tpwgts, options,
+                             objval, epart, npart)
+r = ccall((:METIS_PartMeshNodal, libmetis), Cint,
+(Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+Ref{idx_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}),
+ne, nn, eptr, eind, vwgt, vsize, nparts, tpwgts, options, objval, epart,
+npart)
+r == METIS_OK || throw(MetisError(r))
+return
+end
 
-# function METIS_PartMeshDual(ne, nn, eptr, eind, vwgt, vsize, ncommon, nparts, tpwgts,
-#                             options, objval, epart, npart)
-#     r = ccall((:METIS_PartMeshDual, libmetis), Cint,
-#               (Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
-#                Ref{idx_t}, Ref{idx_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
-#                Ptr{idx_t}),
-#               ne, nn, eptr, eind, vwgt, vsize, ncommon, nparts, tpwgts, options, objval,
-#               epart, npart)
-#     r == METIS_OK || throw(MetisError(r))
-#     return
-# end
+function METIS_PartMeshDual(ne, nn, eptr, eind, vwgt, vsize, ncommon, nparts, tpwgts,
+                            options, objval, epart, npart)
+r = ccall((:METIS_PartMeshDual, libmetis), Cint,
+(Ref{idx_t}, Ref{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+Ref{idx_t}, Ref{idx_t}, Ptr{real_t}, Ptr{idx_t}, Ptr{idx_t}, Ptr{idx_t},
+Ptr{idx_t}),
+ne, nn, eptr, eind, vwgt, vsize, ncommon, nparts, tpwgts, options, objval,
+epart, npart)
+r == METIS_OK || throw(MetisError(r))
+return
+end
 
 function METIS_NodeND(nvtxs, xadj, adjncy, vwgt, options, perm, iperm)
     r = ccall((:METIS_NodeND, libmetis), Cint,
