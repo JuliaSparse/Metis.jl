@@ -33,3 +33,20 @@ end
         @test extrema(parts) == (1, 3)
     end
 end
+
+@testset "Metis.MeshToDual" begin
+    # Connectivity matrix of 2D mesh of 4 triangles.
+    cells = [1 2 2 3;
+             2 5 3 6;
+             4 4 5 5]
+    # Tell Metis to consider a cell connected if it shares two vertices.
+    ncommon = 2
+
+    # Get a Graph object. The number of graph verticies is the number of mesh
+    # elements.
+    G = Metis.graph(cells, ncommon)
+
+    # Partition the graph.
+    parts = Metis.partition(G, 2)
+    @test parts == [1, 1, 2, 2]
+end

@@ -1,5 +1,4 @@
-# const idx_t = Cint
-const idx_t = Clonglong
+const idx_t = Cint
 const real_t = Cfloat
 
 const METIS_NOPTIONS = 40

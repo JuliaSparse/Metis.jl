@@ -3,8 +3,7 @@ module Metis
 using SparseArrays
 using LinearAlgebra
 import LightGraphs
-# using METIS_jll: libmetis
-const libmetis = ENV["METIS_LIB"]
+using METIS_jll: libmetis
 
 # Metis C API
 include("metis_h.jl")
