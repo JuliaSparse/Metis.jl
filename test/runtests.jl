@@ -48,5 +48,8 @@ end
 
     # Partition the graph.
     parts = Metis.partition(G, 2)
-    @test parts == [1, 1, 2, 2]
+    # First two elements should be in the same partition.
+    @test parts[1] == parts[2]
+    # Last two elements should be in the same partition.
+    @test parts[3] == parts[4]
 end
