@@ -19,7 +19,7 @@ end
     T = LightGraphs.smallgraph(:tutte)
     for G in (S, T), alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
         partition = Metis.partition(G, nparts, alg = alg)
-        @test extrema(partition) == (1, nparts)
+        @test extrema(partition) == (2, nparts)
         @test all(x -> findfirst(==(x), partition) !== nothing, 1:nparts)
     end
 end
