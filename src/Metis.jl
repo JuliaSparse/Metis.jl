@@ -96,7 +96,7 @@ function graph(G::SimpleWeightedGraphs.AbstractSimpleWeightedGraph)
     xadj = Vector{idx_t}(undef, N+1)
     xadj[1] = 1
     adjncy = Vector{idx_t}(undef, 2*SimpleWeightedGraphs.ne(G))
-    vwgt = zeros(idx_t, N)
+    vwgt = ones(idx_t, N)
     adjwgt = Vector{idx_t}(undef, 2*SimpleWeightedGraphs.ne(G))
     adjncy_i = 0
     for j in 1:N
