@@ -34,9 +34,9 @@ end
         end
     end
     for alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
+        unwpartition = Metis.partition(T, nparts, alg = alg)
         partition = Metis.partition(G, nparts, alg = alg)
-        @test extrema(partition) == (1, nparts)
-        @test all(x -> findfirst(==(x), partition) !== nothing, 1:nparts)
+        @test partition == unwpartition
     end
 end
 
