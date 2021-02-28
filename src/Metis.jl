@@ -3,6 +3,7 @@ module Metis
 using SparseArrays
 using LinearAlgebra
 import LightGraphs
+import TriangleMesh
 using METIS_jll: libmetis
 
 # Metis C API
@@ -24,6 +25,36 @@ struct Graph
     vwgt::Vector{idx_t}
     Graph(nvtxs, xadj, adjncy) = new(nvtxs, xadj, adjncy)
     Graph(nvtxs, xadj, adjncy, vwgt) = new(nvtxs, xadj, adjncy, vwgt)
+end
+
+"""
+    Metis.Mesh
+
+Representation of a mesh as defined in section 5.6 
+"Mesh data structure" in the Metis manual.
+"""
+struct Mesh
+    ne::idx_t
+    nn::idx_t
+    eptr::Vector{idx_t}
+    eind::Vector{idx_t}
+    Mesh(ne, nn, eptr, eind) = new(ne, nn, eptr, eind)
+end
+
+"""
+    Mesh(mesh::TriangleMesh.TriMesh)
+
+Constructor of Metis.Mesh using a TriangleMesh.TriMesh.
+"""
+function Mesh(mesh::TriangleMesh.TriMesh)
+    ne = idx_t(mesh.n_cell)
+    nn = idx_t(mesh.n_point)
+    eptr = Vector{idx_t}(undef, ne+1)
+    eind = Vector{idx_t}(undef, length(mesh.cell))
+    nn_per_elem, _ = size(mesh.cell)
+    eptr[:] = [idx_t(nn_per_elem*i) for i in 0:ne]
+    eind[:] = reshape(mesh.cell, length(mesh.cell))
+    return Mesh(ne, nn, eptr, eind)
 end
 
 """
@@ -141,6 +172,31 @@ function separator(G::Graph)
     METIS_ComputeVertexSeparator(G.nvtxs, xadj, adjncy, vwgt, options, sepsize, part)
     part .+= 1
     return part
+end
+
+"""
+    Metis.mesh_partition(M, n; alg = :DUAL)
+
+Partition the mesh `M` in `n` parts.
+The partition algorithm is defined by the `alg` keyword:
+ - :DUAL: Partition of the mesh's dual graph
+ - :NODAL: Partition of the mesh's nodal graph
+"""
+function mesh_partition(mesh::TriangleMesh.TriMesh, nparts::Integer; alg = :DUAL)
+    M = Mesh(mesh)
+    epart = Vector{idx_t}(undef, M.ne)
+    npart = Vector{idx_t}(undef, M.nn)
+    objval = fill(idx_t(0), 1)
+    if alg === :NODAL
+        METIS_PartMeshNodal(M.ne, M.nn, M.eptr, M.eind, C_NULL, C_NULL, idx_t(nparts),
+                            C_NULL, options, objval, epart, npart)
+    elseif alg === :DUAL
+        METIS_PartMeshDual(M.ne, M.nn, M.eptr, M.eind, C_NULL, C_NULL, idx_t(2), idx_t(nparts),
+                           C_NULL, options, objval, epart, npart)
+    else
+        throw(ArgumentError("unknown algorithm $(repr(alg))"))
+    end
+    return epart, npart
 end
 
 end # module
