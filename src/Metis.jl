@@ -2,7 +2,7 @@ module Metis
 
 using SparseArrays
 using LinearAlgebra
-import LightGraphs
+import Graphs
 using METIS_jll: libmetis
 
 # Metis C API
@@ -59,19 +59,19 @@ function graph(G::SparseMatrixCSC; check_hermitian=true)
 end
 
 """
-    graph(G::LightGraphs.AbstractSimpleGraph)
+    graph(G::Graphs.AbstractSimpleGraph)
 
-Construct the 1-based CSR representation of the `LightGraphs` graph `G`.
+Construct the 1-based CSR representation of the `Graphs.jl` graph `G`.
 """
-function graph(G::LightGraphs.AbstractSimpleGraph)
-    N = LightGraphs.nv(G)
+function graph(G::Graphs.AbstractSimpleGraph)
+    N = Graphs.nv(G)
     xadj = Vector{idx_t}(undef, N+1)
     xadj[1] = 1
-    adjncy = Vector{idx_t}(undef, 2*LightGraphs.ne(G))
+    adjncy = Vector{idx_t}(undef, 2*Graphs.ne(G))
     adjncy_i = 0
     for j in 1:N
         ne = 0
-        for i in LightGraphs.outneighbors(G, j)
+        for i in Graphs.outneighbors(G, j)
             ne += 1
             adjncy_i += 1
             adjncy[adjncy_i] = i

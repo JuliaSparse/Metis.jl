@@ -2,7 +2,7 @@ using Metis
 using Random
 using Test
 using SparseArrays
-import LightGraphs
+import Graphs
 
 @testset "Metis.permutation" begin
     Random.seed!(0)
@@ -16,7 +16,7 @@ end
 @testset "Metis.partition" begin
     Random.seed!(0)
     S = sprand(10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
-    T = LightGraphs.smallgraph(:tutte)
+    T = Graphs.smallgraph(:tutte)
     for G in (S, T), alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
         partition = Metis.partition(G, nparts, alg = alg)
         @test extrema(partition) == (1, nparts)
@@ -27,7 +27,7 @@ end
 @testset "Metis.separator" begin
     Random.seed!(0)
     S = sprand(10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
-    T = LightGraphs.smallgraph(:tutte)
+    T = Graphs.smallgraph(:tutte)
     for G in (S, T)
         parts = Metis.separator(G)
         @test extrema(parts) == (1, 3)
