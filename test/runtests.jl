@@ -5,8 +5,8 @@ using SparseArrays
 import LightGraphs
 
 @testset "Metis.permutation" begin
-    Random.seed!(0)
-    S = sprand(10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
+    rng = MersenneTwister(0)
+    S = sprand(rng, 10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
     perm, iperm = Metis.permutation(S)
     @test isperm(perm)
     @test isperm(iperm)
@@ -14,8 +14,8 @@ import LightGraphs
 end
 
 @testset "Metis.partition" begin
-    Random.seed!(0)
-    S = sprand(10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
+    rng = MersenneTwister(0)
+    S = sprand(rng, 10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
     T = LightGraphs.smallgraph(:tutte)
     for G in (S, T), alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
         partition = Metis.partition(G, nparts, alg = alg)
@@ -25,8 +25,8 @@ end
 end
 
 @testset "Metis.separator" begin
-    Random.seed!(0)
-    S = sprand(10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
+    rng = MersenneTwister(0)
+    S = sprand(rng, 10, 10, 0.5); S = S + S'; fill(S.nzval, 1)
     T = LightGraphs.smallgraph(:tutte)
     for G in (S, T)
         parts = Metis.separator(G)
