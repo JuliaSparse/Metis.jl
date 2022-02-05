@@ -2,7 +2,7 @@ module Metis
 
 using SparseArrays
 using LinearAlgebra
-import LightGraphs
+import LightGraphs, Graphs
 using METIS_jll: libmetis
 
 # Metis C API
@@ -59,19 +59,20 @@ function graph(G::SparseMatrixCSC; check_hermitian=true)
 end
 
 """
+    graph(G::Graphs.AbstractSimpleGraph)
     graph(G::LightGraphs.AbstractSimpleGraph)
 
-Construct the 1-based CSR representation of the `LightGraphs` graph `G`.
+Construct the 1-based CSR representation of the `(Light)Graphs` graph `G`.
 """
-function graph(G::LightGraphs.AbstractSimpleGraph)
-    N = LightGraphs.nv(G)
+function graph(G::Union{Graphs.AbstractSimpleGraph, LightGraphs.AbstractSimpleGraph})
+    N = nv(G)
     xadj = Vector{idx_t}(undef, N+1)
     xadj[1] = 1
-    adjncy = Vector{idx_t}(undef, 2*LightGraphs.ne(G))
+    adjncy = Vector{idx_t}(undef, 2*ne(G))
     adjncy_i = 0
     for j in 1:N
         ne = 0
-        for i in LightGraphs.outneighbors(G, j)
+        for i in outneighbors(G, j)
             ne += 1
             adjncy_i += 1
             adjncy[adjncy_i] = i
@@ -81,6 +82,13 @@ function graph(G::LightGraphs.AbstractSimpleGraph)
     resize!(adjncy, adjncy_i)
     return Graph(idx_t(N), xadj, adjncy)
 end
+
+# Legacy support for LightGraphs
+for mod in (:LightGraphs, :Graphs); @eval begin
+    nv(G::$(mod).AbstractSimpleGraph) = $(mod).nv(G)
+    ne(G::$(mod).AbstractSimpleGraph) = $(mod).ne(G)
+    outneighbors(G::$(mod).AbstractSimpleGraph, j) = $(mod).outneighbors(G, j)
+end end
 
 """
     perm, iperm = Metis.permutation(G)
