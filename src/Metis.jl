@@ -22,17 +22,21 @@ struct Graph
     xadj::Vector{idx_t}
     adjncy::Union{Vector{idx_t}, Ptr{Nothing}}
     vwgt::Union{Vector{idx_t}, Ptr{Nothing}}
-    Graph(nvtxs, xadj, adjncy, vwgt=C_NULL) = new(nvtxs, xadj, adjncy, vwgt)
+    adjwgt::Union{Vector{idx_t}, Ptr{Nothing}}
+    function Graph(nvtxs, xadj, adjncy, vwgt=C_NULL, adjwgt=C_NULL)
+        return new(nvtxs, xadj, adjncy, vwgt, adjwgt)
+    end
 end
 
 """
-    Metis.graph(G::SparseMatrixCSC; check_hermitian=true)
+    Metis.graph(G::SparseMatrixCSC; weights=false, check_hermitian=true)
 
 Construct the 1-based CSR representation of the sparse matrix `G`.
 If `check_hermitian` is `false` the matrix is not checked for being hermitian
 before constructing the graph.
+If `weights=true` the entries of the matrix are used as edge weights.
 """
-function graph(G::SparseMatrixCSC; check_hermitian=true)
+function graph(G::SparseMatrixCSC; weights::Bool=false, check_hermitian::Bool=true)
     if check_hermitian
         ishermitian(G) || throw(ArgumentError("matrix must be Hermitian"))
     end
@@ -40,6 +44,8 @@ function graph(G::SparseMatrixCSC; check_hermitian=true)
     xadj = Vector{idx_t}(undef, N+1)
     xadj[1] = 1
     adjncy = Vector{idx_t}(undef, nnz(G))
+    vwgt = C_NULL # TODO: Vertex weights could be passed as input argument
+    adjwgt = weights ? Vector{idx_t}(undef, nnz(G)) : C_NULL
     adjncy_i = 0
     @inbounds for j in 1:N
         n_rows = 0
@@ -49,12 +55,16 @@ function graph(G::SparseMatrixCSC; check_hermitian=true)
                 n_rows += 1
                 adjncy_i += 1
                 adjncy[adjncy_i] = i
+                if weights
+                    adjwgt[adjncy_i] = G.nzval[k]
+                end
             end
         end
         xadj[j+1] = xadj[j] + n_rows
     end
     resize!(adjncy, adjncy_i)
-    return Graph(idx_t(N), xadj, adjncy)
+    weights && resize!(adjwgt, adjncy_i)
+    return Graph(idx_t(N), xadj, adjncy, vwgt, adjwgt)
 end
 
 """
