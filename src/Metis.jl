@@ -20,10 +20,9 @@ section 5.5 "Graph data structure" in the Metis manual.
 struct Graph
     nvtxs::idx_t
     xadj::Vector{idx_t}
-    adjncy::Vector{idx_t}
-    vwgt::Vector{idx_t}
-    Graph(nvtxs, xadj, adjncy) = new(nvtxs, xadj, adjncy)
-    Graph(nvtxs, xadj, adjncy, vwgt) = new(nvtxs, xadj, adjncy, vwgt)
+    adjncy::Union{Vector{idx_t}, Ptr{Nothing}}
+    vwgt::Union{Vector{idx_t}, Ptr{Nothing}}
+    Graph(nvtxs, xadj, adjncy, vwgt=C_NULL) = new(nvtxs, xadj, adjncy, vwgt)
 end
 
 """
@@ -101,8 +100,7 @@ permutation(G) = permutation(graph(G))
 function permutation(G::Graph)
     perm = Vector{idx_t}(undef, G.nvtxs)
     iperm = Vector{idx_t}(undef, G.nvtxs)
-    vwgt = isdefined(G, :vwgt) ? G.vwgt : C_NULL
-    METIS_NodeND(G.nvtxs, G.xadj, G.adjncy, vwgt, options, perm, iperm)
+    METIS_NodeND(G.nvtxs, G.xadj, G.adjncy, G.vwgt, options, perm, iperm)
     return perm, iperm
 end
 
@@ -118,13 +116,12 @@ partition(G, nparts; alg = :KWAY) = partition(graph(G), nparts, alg = alg)
 
 function partition(G::Graph, nparts::Integer; alg = :KWAY)
     part = Vector{idx_t}(undef, G.nvtxs)
-    vwgt = isdefined(G, :vwgt) ? G.vwgt : C_NULL
     edgecut = fill(idx_t(0), 1)
     if alg === :RECURSIVE
-        METIS_PartGraphRecursive(G.nvtxs, idx_t(1), G.xadj, G.adjncy, vwgt, C_NULL, C_NULL,
+        METIS_PartGraphRecursive(G.nvtxs, idx_t(1), G.xadj, G.adjncy, G.vwgt, C_NULL, C_NULL,
                                  idx_t(nparts), C_NULL, C_NULL, options, edgecut, part)
     elseif alg === :KWAY
-        METIS_PartGraphKway(G.nvtxs, idx_t(1), G.xadj, G.adjncy, vwgt, C_NULL, C_NULL,
+        METIS_PartGraphKway(G.nvtxs, idx_t(1), G.xadj, G.adjncy, G.vwgt, C_NULL, C_NULL,
                             idx_t(nparts), C_NULL, C_NULL, options, edgecut, part)
     else
         throw(ArgumentError("unknown algorithm $(repr(alg))"))
@@ -142,11 +139,10 @@ separator(G) = separator(graph(G))
 function separator(G::Graph)
     part = Vector{idx_t}(undef, G.nvtxs)
     sepsize = fill(idx_t(0), 1)
-    vwgt = isdefined(G, :vwgt) ? G.vwgt : C_NULL
     # METIS_ComputeVertexSeparator segfaults with 1-based indexing
     xadj = G.xadj .- idx_t(1)
     adjncy = G.adjncy .- idx_t(1)
-    METIS_ComputeVertexSeparator(G.nvtxs, xadj, adjncy, vwgt, options, sepsize, part)
+    METIS_ComputeVertexSeparator(G.nvtxs, xadj, adjncy, G.vwgt, options, sepsize, part)
     part .+= 1
     return part
 end
