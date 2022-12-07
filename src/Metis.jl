@@ -5,10 +5,14 @@ using LinearAlgebra
 import LightGraphs, Graphs
 using METIS_jll: libmetis
 
-# Metis C API
-include("metis_h.jl")
+# Metis C API: Clang.jl auto-generated bindings and some manual methods
+include("LibMetis.jl")
+using .LibMetis
+using .LibMetis: idx_t, @check
+
+# Global options array -- should probably do something better...
 const options = fill(Cint(-1), METIS_NOPTIONS)
-options[METIS_OPTION_NUMBERING] = 1
+options[Int(METIS_OPTION_NUMBERING)+1] = 1
 
 # Julia interface
 """
@@ -110,7 +114,7 @@ permutation(G) = permutation(graph(G))
 function permutation(G::Graph)
     perm = Vector{idx_t}(undef, G.nvtxs)
     iperm = Vector{idx_t}(undef, G.nvtxs)
-    METIS_NodeND(G.nvtxs, G.xadj, G.adjncy, G.vwgt, options, perm, iperm)
+    @check METIS_NodeND(Ref{idx_t}(G.nvtxs), G.xadj, G.adjncy, G.vwgt, options, perm, iperm)
     return perm, iperm
 end
 
@@ -128,11 +132,11 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
     part = Vector{idx_t}(undef, G.nvtxs)
     edgecut = fill(idx_t(0), 1)
     if alg === :RECURSIVE
-        METIS_PartGraphRecursive(G.nvtxs, idx_t(1), G.xadj, G.adjncy, G.vwgt, C_NULL, C_NULL,
-                                 idx_t(nparts), C_NULL, C_NULL, options, edgecut, part)
+        @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, C_NULL,
+                                        Ref{idx_t}(nparts), C_NULL, C_NULL, options, edgecut, part)
     elseif alg === :KWAY
-        METIS_PartGraphKway(G.nvtxs, idx_t(1), G.xadj, G.adjncy, G.vwgt, C_NULL, C_NULL,
-                            idx_t(nparts), C_NULL, C_NULL, options, edgecut, part)
+        @check METIS_PartGraphKway(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, C_NULL,
+                                   Ref{idx_t}(nparts), C_NULL, C_NULL, options, edgecut, part)
     else
         throw(ArgumentError("unknown algorithm $(repr(alg))"))
     end
@@ -152,7 +156,7 @@ function separator(G::Graph)
     # METIS_ComputeVertexSeparator segfaults with 1-based indexing
     xadj = G.xadj .- idx_t(1)
     adjncy = G.adjncy .- idx_t(1)
-    METIS_ComputeVertexSeparator(G.nvtxs, xadj, adjncy, G.vwgt, options, sepsize, part)
+    @check METIS_ComputeVertexSeparator(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, options, sepsize, part)
     part .+= 1
     return part
 end
