@@ -11,6 +11,7 @@ METIS_jll = "d00139f3-1899-568f-a2f0-47f597d42d70"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
+CEnum = "0.4"
 Graphs = "1"
 LightGraphs = "1"
 METIS_jll = "5.1"
