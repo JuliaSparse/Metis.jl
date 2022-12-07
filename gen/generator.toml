@@ -1,0 +1,20 @@
+[general]
+library_name = "libmetis"
+output_file_path = "../lib/LibMetis.jl"
+jll_pkg_name = "METIS_jll"
+export_symbol_prefixes = []
+output_ignorelist = [
+    "IDX_MAX",
+    "IDX_MIN",
+    "SCIDX",
+    "PRIDX",
+    "strtoidx",
+    "iabs",
+    "SCREAL",
+    "PRREAL",
+    "REAL_MAX",
+    "REAL_MIN",
+    "REAL_EPSILON",
+    "rabs",
+    "strtoreal",
+]
