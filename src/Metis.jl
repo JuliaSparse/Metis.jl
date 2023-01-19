@@ -56,13 +56,12 @@ function graph(G::SparseMatrixCSC; weights::Bool=false, check_hermitian::Bool=tr
         n_rows = 0
         for k in G.colptr[j] : (G.colptr[j+1] - 1)
             i = G.rowval[k]
-            if i != j # don't include diagonal elements
-                n_rows += 1
-                adjncy_i += 1
-                adjncy[adjncy_i] = i
-                if weights
-                    adjwgt[adjncy_i] = G.nzval[k]
-                end
+            i == j && continue # skip self edges
+            n_rows += 1
+            adjncy_i += 1
+            adjncy[adjncy_i] = i
+            if weights
+                adjwgt[adjncy_i] = G.nzval[k]
             end
         end
         xadj[j+1] = xadj[j] + n_rows

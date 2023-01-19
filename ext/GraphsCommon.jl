@@ -15,6 +15,7 @@ function graph(G)
     for j in 1:N
         ne = 0
         for i in outneighbors(G, j)
+            i == j && continue # skip self edges
             ne += 1
             adjncy_i += 1
             adjncy[adjncy_i] = i
