@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 module LibMetis
 
 # Clang.jl auto-generated bindings

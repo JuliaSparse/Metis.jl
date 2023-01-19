@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: MIT
+
 module Metis
 
 using SparseArrays
-using LinearAlgebra
-import LightGraphs, Graphs
+using LinearAlgebra: ishermitian
 using METIS_jll: libmetis
 
 # Metis C API: Clang.jl auto-generated bindings and some manual methods
@@ -71,37 +72,6 @@ function graph(G::SparseMatrixCSC; weights::Bool=false, check_hermitian::Bool=tr
     return Graph(idx_t(N), xadj, adjncy, vwgt, adjwgt)
 end
 
-"""
-    graph(G::Graphs.AbstractSimpleGraph)
-    graph(G::LightGraphs.AbstractSimpleGraph)
-
-Construct the 1-based CSR representation of the `(Light)Graphs` graph `G`.
-"""
-function graph(G::Union{Graphs.AbstractSimpleGraph, LightGraphs.AbstractSimpleGraph})
-    N = nv(G)
-    xadj = Vector{idx_t}(undef, N+1)
-    xadj[1] = 1
-    adjncy = Vector{idx_t}(undef, 2*ne(G))
-    adjncy_i = 0
-    for j in 1:N
-        ne = 0
-        for i in outneighbors(G, j)
-            ne += 1
-            adjncy_i += 1
-            adjncy[adjncy_i] = i
-        end
-        xadj[j+1] = xadj[j] + ne
-    end
-    resize!(adjncy, adjncy_i)
-    return Graph(idx_t(N), xadj, adjncy)
-end
-
-# Legacy support for LightGraphs
-for mod in (:LightGraphs, :Graphs); @eval begin
-    nv(G::$(mod).AbstractSimpleGraph) = $(mod).nv(G)
-    ne(G::$(mod).AbstractSimpleGraph) = $(mod).ne(G)
-    outneighbors(G::$(mod).AbstractSimpleGraph, j) = $(mod).outneighbors(G, j)
-end end
 
 """
     perm, iperm = Metis.permutation(G)
@@ -160,6 +130,12 @@ function separator(G::Graph)
     @check METIS_ComputeVertexSeparator(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, options, sepsize, part)
     part .+= 1
     return part
+end
+
+# Compatibility for Julias that doesn't support package extensions
+if !(isdefined(Base, :get_extension))
+    include("../ext/MetisGraphs.jl")
+    include("../ext/MetisLightGraphs.jl")
 end
 
 end # module
