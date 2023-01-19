@@ -35,7 +35,7 @@ end
     SG = Metis.graph(S; weights=true)
     T = Graphs.smallgraph(:tutte)
     TL = LightGraphs.smallgraph(:tutte)
-    for G in (S, T, TL, SG), alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
+    for G in (S, T, TL, SG), alg in (:RECURSIVE, :KWAY), nparts in (1, 3, 4)
         partition = Metis.partition(G, nparts, alg = alg)
         @test extrema(partition) == (1, nparts)
         @test all(x -> findfirst(==(x), partition) !== nothing, 1:nparts)
