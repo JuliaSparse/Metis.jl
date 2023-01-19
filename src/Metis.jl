@@ -102,10 +102,10 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
     nparts == 1 && return fill!(part, 1) # https://github.com/JuliaSparse/Metis.jl/issues/49
     edgecut = fill(idx_t(0), 1)
     if alg === :RECURSIVE
-        @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, C_NULL,
+        @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, G.adjwgt,
                                         Ref{idx_t}(nparts), C_NULL, C_NULL, options, edgecut, part)
     elseif alg === :KWAY
-        @check METIS_PartGraphKway(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, C_NULL,
+        @check METIS_PartGraphKway(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, G.adjwgt,
                                    Ref{idx_t}(nparts), C_NULL, C_NULL, options, edgecut, part)
     else
         throw(ArgumentError("unknown algorithm $(repr(alg))"))
