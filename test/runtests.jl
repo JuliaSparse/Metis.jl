@@ -40,6 +40,26 @@ end
         @test extrema(partition) == (1, nparts)
         @test all(x -> findfirst(==(x), partition) !== nothing, 1:nparts)
     end
+    # With weights
+    if isdefined(Base, :get_extension)
+        import SimpleWeightedGraphs
+        G1 = SimpleWeightedGraphs.SimpleWeightedGraph(Graphs.nv(T))
+        G2 = SimpleWeightedGraphs.SimpleWeightedGraph(Graphs.nv(T))
+        for edge in Graphs.edges(T)
+            i, j = Tuple(edge)
+            SimpleWeightedGraphs.add_edge!(G1, i, j, 1)
+            SimpleWeightedGraphs.add_edge!(G2, i, j, i+j)
+        end
+        for alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
+            unwpartition = Metis.partition(T, nparts, alg = alg)
+            partition = Metis.partition(G1, nparts, alg = alg)
+            @test partition == unwpartition
+            partition = Metis.partition(G2, nparts, alg = alg)
+            @test partition != unwpartition
+            @test extrema(partition) == (1, nparts)
+            @test all(x -> findfirst(==(x), partition) !== nothing, 1:nparts)
+        end
+    end
 end
 
 @testset "Metis.separator" begin

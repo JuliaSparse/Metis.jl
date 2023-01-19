@@ -13,23 +13,27 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 [weakdeps]
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
+SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 
 [extensions]
 MetisGraphs = "Graphs"
 MetisLightGraphs = "LightGraphs"
+MetisSimpleWeightedGraphs = ["SimpleWeightedGraphs", "Graphs"]
 
 [compat]
 CEnum = "0.4"
 Graphs = "1"
 LightGraphs = "1"
 METIS_jll = "5.1"
+SimpleWeightedGraphs = "1"
 julia = "1.6"
 
 [extras]
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SimpleWeightedGraphs = "47aef6b3-ad0c-573a-a1e2-d07658019622"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Graphs", "LightGraphs", "Random", "Test"]
+test = ["Graphs", "LightGraphs", "Random", "SimpleWeightedGraphs", "Test"]
