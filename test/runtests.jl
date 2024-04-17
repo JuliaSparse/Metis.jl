@@ -30,10 +30,9 @@ end
 end
 
 @testset "Metis.partition" begin
-    rng = MersenneTwister(0)
-    S = sprand(rng, Int, 10, 10, 0.5); S = S + S'; fill!(S.nzval, 1)
-    SG = Metis.graph(S; weights=true)
     T = Graphs.smallgraph(:tutte)
+    S = Graphs.adjacency_matrix(T)
+    SG = Metis.graph(S; weights=true)
     TL = LightGraphs.smallgraph(:tutte)
     for G in (S, T, TL, SG), alg in (:RECURSIVE, :KWAY), nparts in (1, 3, 4)
         partition = Metis.partition(G, nparts, alg = alg)
@@ -63,12 +62,12 @@ end
 end
 
 @testset "Metis.separator" begin
-    rng = MersenneTwister(0)
-    S = sprand(rng, 10, 10, 0.5); S = S + S'; fill!(S.nzval, 1)
+    T = Graphs.smallgraph(:tutte)
+    S = Graphs.adjacency_matrix(T)
     SG = Metis.graph(S; weights=true)
     T = Graphs.smallgraph(:tutte)
     TL = LightGraphs.smallgraph(:tutte)
-    for G in (S, T, TL)
+    for G in (S, T, TL, SG)
         parts = Metis.separator(G)
         @test extrema(parts) == (1, 3)
     end
