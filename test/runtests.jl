@@ -2,6 +2,7 @@ using Metis
 using Random
 using Test
 using SparseArrays
+using LinearAlgebra
 import LightGraphs, Graphs
 
 @testset "Metis.graph(::SparseMatrixCSC)" begin
@@ -18,6 +19,20 @@ import LightGraphs, Graphs
     GW = SparseMatrixCSC(10, 10, gw.xadj, gw.adjncy, gw.adjwgt)
     @test iszero(S - G)
     @test iszero(S - GW)
+    # Hermitian
+    rd = rand(10) # Random diagonal
+    Hl = Hermitian(sparse(tril(S) + Diagonal(rd))) # Lower triangular
+    Hu = Hermitian(sparse(tril(S) + Diagonal(rd))) # Upper triangular
+    Hf = Hl + Hu                        # Full matrix
+    hf = Metis.graph(Hf)                
+    hl = Metis.graph(Hl)    # Assembling graph using only lower triangle          
+    hu = Metis.graph(Hu)    # Assembling graph using only lower triangle
+    # Testing lower triangular
+    @test hf.xadj == hl.xadj
+    @test hf.adjncy == hl.adjncy
+    # Testing upper triangular
+    @test hf.xadj == hu.xadj
+    @test hf.adjncy == hu.adjncy
 end
 
 @testset "Metis.permutation" begin

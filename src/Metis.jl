@@ -3,13 +3,16 @@
 module Metis
 
 using SparseArrays
-using LinearAlgebra: ishermitian
+using LinearAlgebra: ishermitian, Hermitian, istril, istriu
 using METIS_jll: libmetis
 
 # Metis C API: Clang.jl auto-generated bindings and some manual methods
 include("LibMetis.jl")
 using .LibMetis
 using .LibMetis: idx_t, @check
+
+# Various operations for sparse matrices
+include("utils.jl")
 
 # Global options array -- should probably do something better...
 const options = fill(Cint(-1), METIS_NOPTIONS)
@@ -32,6 +35,7 @@ struct Graph
         return new(nvtxs, xadj, adjncy, vwgt, adjwgt)
     end
 end
+
 
 """
     Metis.graph(G::SparseMatrixCSC; weights=false, check_hermitian=true)
@@ -68,6 +72,56 @@ function graph(G::SparseMatrixCSC; weights::Bool=false, check_hermitian::Bool=tr
     end
     resize!(adjncy, adjncy_i)
     weights && resize!(adjwgt, adjncy_i)
+    return Graph(idx_t(N), xadj, adjncy, vwgt, adjwgt)
+end
+
+"""
+    Metis.graph(G::Hermitian{<:T,SparseMatrixCSC{T,I}}; weights::Bool=false) where {T,I}
+
+Construct the 1-based CSR representation of the Hermitian sparse matrix `G`.
+"""
+function graph(G::Hermitian{<:T,SparseMatrixCSC{T,I}}; weights::Bool=false) where {T,I}
+    # If weights are on then go back to the previous
+    if weights == true
+        throw(ArgumentError("weights not supported for Hermitian matrices. Use `graph(sparse(G))` instead."))
+        # return graph(G + G'; check_hermitian=false, weights=weights)
+    end
+    # Check if only a single triangle is given. 
+    if !istril(G.data) && !istriu(G.data)
+        throw(ArgumentError("underlying matrix is neither tril or triu"))
+    end
+    # Alternatively this. But it copies data, which users that wraps in Hermitian would
+    # if G.uplo == :L
+    #     B = tril(G.data)
+    # elseif G.uplo == :U
+    #     B = triu(G.data)
+    # else
+    #     B = G
+    # end
+    # rowval, colptr = get_full_sparsity(B.data)
+
+    rowval, colptr = get_full_sparsity(G.data)
+    N = length(colptr) - 1
+    nnzG = length(rowval)
+
+    xadj = Vector{idx_t}(undef, N+1)
+    xadj[1] = 1
+    adjncy = Vector{idx_t}(undef, nnzG)
+    vwgt = C_NULL # TODO: Vertex weights could be passed as input argument
+    adjwgt = weights ? Vector{idx_t}(undef, nnzG) : C_NULL
+    adjncy_i = 0
+    @inbounds for j in 1:N
+        n_rows = 0
+        for k in colptr[j] : (colptr[j+1] - 1)
+            i = rowval[k]
+            i == j && continue # skip self edges
+            n_rows += 1
+            adjncy_i += 1
+            adjncy[adjncy_i] = i
+        end
+        xadj[j+1] = xadj[j] + n_rows
+    end
+    resize!(adjncy, adjncy_i)
     return Graph(idx_t(N), xadj, adjncy, vwgt, adjwgt)
 end
 
