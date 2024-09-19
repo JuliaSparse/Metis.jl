@@ -76,6 +76,23 @@ const HermOrSymCSC{Tv, Ti} = Union{
     Hermitian{Tv, SparseMatrixCSC{Tv, Ti}}, Symmetric{Tv, SparseMatrixCSC{Tv, Ti}},
 }
 
+if VERSION < v"1.10"
+    # From https://github.com/JuliaSparse/SparseArrays.jl/blob/313a04f4a78bbc534f89b6b4d9c598453e2af17c/src/linalg.jl#L1106-L1117
+    # MIT license: https://github.com/JuliaSparse/SparseArrays.jl/blob/main/LICENSE.md
+    function nzrangeup(A, i, excl=false)
+        r = nzrange(A, i); r1 = r.start; r2 = r.stop
+        rv = rowvals(A)
+        @inbounds r2 < r1 || rv[r2] <= i - excl ? r : r1:(searchsortedlast(view(rv, r1:r2), i - excl) + r1-1)
+    end
+    function nzrangelo(A, i, excl=false)
+        r = nzrange(A, i); r1 = r.start; r2 = r.stop
+        rv = rowvals(A)
+        @inbounds r2 < r1 || rv[r1] >= i + excl ? r : (searchsortedfirst(view(rv, r1:r2), i + excl) + r1-1):r2
+    end
+else
+    using SparseArrays: nzrangeup, nzrangelo
+end
+
 """
     Metis.graph(G::Union{Hermitian, Symmetric}; weights::Bool=false)
 
@@ -102,9 +119,9 @@ function graph(H::HermOrSymCSC; weights::Bool=false)
     newcolptr[1] = 1
     # SparseArrays.nzrange for the upper/lower part excluding the diagonal
     nzrng = if upper
-        (A, col) -> SparseArrays.nzrangeup(A, col, #=exclude diagonal=# true)
+        (A, col) -> nzrangeup(A, col, #=exclude diagonal=# true)
     else
-        (A, col) -> SparseArrays.nzrangelo(A, col, #=exclude diagonal=# true)
+        (A, col) -> nzrangelo(A, col, #=exclude diagonal=# true)
     end
     # If the upper part is stored we loop forward, otherwise backwards
     colrange = upper ? (1:1:n) : (n:-1:1)
