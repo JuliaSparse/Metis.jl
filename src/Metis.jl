@@ -3,16 +3,13 @@
 module Metis
 
 using SparseArrays
-using LinearAlgebra: ishermitian, Hermitian, istril, istriu
+using LinearAlgebra: ishermitian, Hermitian, Symmetric
 using METIS_jll: libmetis
 
 # Metis C API: Clang.jl auto-generated bindings and some manual methods
 include("LibMetis.jl")
 using .LibMetis
 using .LibMetis: idx_t, @check
-
-# Various operations for sparse matrices
-include("utils.jl")
 
 # Global options array -- should probably do something better...
 const options = fill(Cint(-1), METIS_NOPTIONS)
@@ -75,56 +72,85 @@ function graph(G::SparseMatrixCSC; weights::Bool=false, check_hermitian::Bool=tr
     return Graph(idx_t(N), xadj, adjncy, vwgt, adjwgt)
 end
 
+const HermOrSymCSC{Tv, Ti} = Union{
+    Hermitian{Tv, SparseMatrixCSC{Tv, Ti}}, Symmetric{Tv, SparseMatrixCSC{Tv, Ti}},
+}
+
 """
-    Metis.graph(G::Hermitian{<:T,SparseMatrixCSC{T,I}}; weights::Bool=false) where {T,I}
+    Metis.graph(G::Union{Hermitian, Symmetric}; weights::Bool=false)
 
-Construct the 1-based CSR representation of the Hermitian sparse matrix `G`.
+Construct the 1-based CSR representation of the `Hermitian` or `Symmetric` wrapped sparse
+matrix `G`.
+Weights are not currently supported for this method so passing `weights=true` will throw an
+error.
 """
-function graph(G::Hermitian{<:T,SparseMatrixCSC{T,I}}; weights::Bool=false) where {T,I}
-    # If weights are on then go back to the previous
-    if weights == true
-        throw(ArgumentError("weights not supported for Hermitian matrices. Use `graph(sparse(G))` instead."))
-        # return graph(G + G'; check_hermitian=false, weights=weights)
+function graph(H::HermOrSymCSC; weights::Bool=false)
+    # This method is derived from the method `SparseMatrixCSC(::HermOrSymCSC)` from
+    # SparseArrays.jl
+    # (https://github.com/JuliaSparse/SparseArrays.jl/blob/313a04f4a78bbc534f89b6b4d9c598453e2af17c/src/sparseconvert.jl#L124-L173)
+    # with MIT license
+    # (https://github.com/JuliaSparse/SparseArrays.jl/blob/main/LICENSE.md).
+    weights && throw(ArgumentError("weights not supported yet"))
+    # Extract data
+    A = H.data
+    upper = H.uplo == 'U'
+    rowval = rowvals(A)
+    m, n = size(A)
+    @assert m == n
+    # New colptr for the full matrix
+    newcolptr = Vector{idx_t}(undef, n + 1)
+    newcolptr[1] = 1
+    # SparseArrays.nzrange for the upper/lower part excluding the diagonal
+    nzrng = if upper
+        (A, col) -> SparseArrays.nzrangeup(A, col, #=exclude diagonal=# true)
+    else
+        (A, col) -> SparseArrays.nzrangelo(A, col, #=exclude diagonal=# true)
     end
-    # Check if only a single triangle is given. 
-    if !istril(G.data) && !istriu(G.data)
-        throw(ArgumentError("underlying matrix is neither tril or triu"))
-    end
-    # Alternatively this. But it copies data, which users that wraps in Hermitian would
-    # if G.uplo == :L
-    #     B = tril(G.data)
-    # elseif G.uplo == :U
-    #     B = triu(G.data)
-    # else
-    #     B = G
-    # end
-    # rowval, colptr = get_full_sparsity(B.data)
-
-    rowval, colptr = get_full_sparsity(G.data)
-    N = length(colptr) - 1
-    nnzG = length(rowval)
-
-    xadj = Vector{idx_t}(undef, N+1)
-    xadj[1] = 1
-    adjncy = Vector{idx_t}(undef, nnzG)
-    vwgt = C_NULL # TODO: Vertex weights could be passed as input argument
-    adjwgt = weights ? Vector{idx_t}(undef, nnzG) : C_NULL
-    adjncy_i = 0
-    @inbounds for j in 1:N
-        n_rows = 0
-        for k in colptr[j] : (colptr[j+1] - 1)
-            i = rowval[k]
-            i == j && continue # skip self edges
-            n_rows += 1
-            adjncy_i += 1
-            adjncy[adjncy_i] = i
+    # If the upper part is stored we loop forward, otherwise backwards
+    colrange = upper ? (1:1:n) : (n:-1:1)
+    @inbounds for col in colrange
+        r = nzrng(A, col)
+        # Number of entries in the stored part of this column, excluding the diagonal entry
+        newcolptr[col + 1] = length(r)
+        # Increment columnptr corresponding to the stored rows
+        for k in r
+            row = rowval[k]
+            @assert upper ? row < col : row > col
+            @assert row != col # Diagonal entries should not be here
+            newcolptr[row + 1] += 1
         end
-        xadj[j+1] = xadj[j] + n_rows
     end
-    resize!(adjncy, adjncy_i)
+    # Accumulate the colptr and allocate new rowval
+    cumsum!(newcolptr, newcolptr)
+    nz = newcolptr[n + 1] - 1
+    newrowval = Vector{idx_t}(undef, nz)
+    # Populate the rowvals
+    @inbounds for col = 1:n
+        newk = newcolptr[col]
+        for k in nzrng(A, col)
+            row = rowval[k]
+            @assert col != row
+            newrowval[newk] = row
+            newk += 1
+            ni = newcolptr[row]
+            newrowval[ni] = col
+            newcolptr[row] = ni + 1
+        end
+        newcolptr[col] = newk
+    end
+    # Shuffle back the colptrs
+    @inbounds for j = n:-1:1
+        newcolptr[j+1] = newcolptr[j]
+    end
+    newcolptr[1] = 1
+    # Return Graph
+    N = n
+    xadj = newcolptr
+    adjncy = newrowval
+    vwgt = C_NULL
+    adjwgt = C_NULL
     return Graph(idx_t(N), xadj, adjncy, vwgt, adjwgt)
 end
-
 
 """
     perm, iperm = Metis.permutation(G)

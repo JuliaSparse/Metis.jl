@@ -2,7 +2,7 @@ using Metis
 using Random
 using Test
 using SparseArrays
-using LinearAlgebra
+using LinearAlgebra: Symmetric, Hermitian
 import LightGraphs, Graphs
 
 @testset "Metis.graph(::SparseMatrixCSC)" begin
@@ -19,20 +19,24 @@ import LightGraphs, Graphs
     GW = SparseMatrixCSC(10, 10, gw.xadj, gw.adjncy, gw.adjwgt)
     @test iszero(S - G)
     @test iszero(S - GW)
-    # Hermitian
-    rd = rand(10) # Random diagonal
-    Hl = Hermitian(sparse(tril(S) + Diagonal(rd))) # Lower triangular
-    Hu = Hermitian(sparse(tril(S) + Diagonal(rd))) # Upper triangular
-    Hf = Hl + Hu                        # Full matrix
-    hf = Metis.graph(Hf)                
-    hl = Metis.graph(Hl)    # Assembling graph using only lower triangle          
-    hu = Metis.graph(Hu)    # Assembling graph using only lower triangle
-    # Testing lower triangular
-    @test hf.xadj == hl.xadj
-    @test hf.adjncy == hl.adjncy
-    # Testing upper triangular
-    @test hf.xadj == hu.xadj
-    @test hf.adjncy == hu.adjncy
+end
+
+@testset "Metis.graph(::Union{Hermitian, Symmetric})" begin
+    rng = MersenneTwister(0)
+    for T in (Symmetric, Hermitian), uplo in (:U, :L)
+        S = sprand(rng, Int, 10, 10, 0.2); fill!(S.nzval, 1)
+        TS = T(S, uplo)
+        CSCS = SparseMatrixCSC(TS)
+        @test TS == CSCS
+        g1 = Metis.graph(TS)
+        g2 = Metis.graph(CSCS)
+        @test g1.nvtxs == g2.nvtxs
+        @test g1.xadj == g2.xadj
+        @test g1.adjncy == g2.adjncy
+        @test g1.vwgt == g2.vwgt == C_NULL
+        @test g1.adjwgt == g2.adjwgt == C_NULL
+        @test_throws ArgumentError Metis.graph(TS; weights = true)
+    end
 end
 
 @testset "Metis.permutation" begin
