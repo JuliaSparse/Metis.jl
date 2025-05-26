@@ -70,8 +70,8 @@ all with the same arguments and argument order as described in the
 [codecov-img]: http://codecov.io/github/JuliaSparse/Metis.jl/coverage.svg?branch=master
 [codecov-url]: http://codecov.io/github/JuliaSparse/Metis.jl?branch=master
 
-[metis-url]: http://glaros.dtc.umn.edu/gkhome/metis/metis/overview
-[metis-manual-url]: http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/manual.pdf
+[metis-url]: https://karypis.github.io/glaros/software/metis/overview.html
+[metis-manual-url]: https://karypis.github.io/glaros/files/sw/metis/manual.pdf
 
 [S-url]: https://user-images.githubusercontent.com/11698744/38196722-dd9877c2-3684-11e8-8c02-a767604824d1.png
 [Spp-url]: https://user-images.githubusercontent.com/11698744/38196723-ddb62fba-3684-11e8-89ff-181128644294.png
