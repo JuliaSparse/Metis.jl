@@ -12,10 +12,6 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    permissions:
-      actions: write # for julia-actions/cache to delete old caches
-      contents: read
-      id-token: write
     strategy:
       matrix:
         version:
@@ -39,4 +35,4 @@ jobs:
       - uses: codecov/codecov-action@v7
         with:
           files: lcov.info
-          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
