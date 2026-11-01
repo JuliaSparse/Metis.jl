@@ -21,7 +21,7 @@ MetisLightGraphs = "LightGraphs"
 MetisSimpleWeightedGraphs = ["SimpleWeightedGraphs", "Graphs"]
 
 [compat]
-CEnum = "0.5, 1.0"
+CEnum = "1.0"
 Graphs = "1"
 LightGraphs = "1"
 LinearAlgebra = "<0.0.1, 1.6"
