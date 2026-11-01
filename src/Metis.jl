@@ -169,6 +169,11 @@ function graph(H::HermOrSymCSC; weights::Bool=false)
     return Graph(idx_t(N), xadj, adjncy, vwgt, adjwgt)
 end
 
+# With NUMBERING=1 Metis renumbers xadj and adjncy in place during a call, so it gets private
+# copies to allow several threads to use the same Graph. adjncy can be C_NULL for a graph
+# without edges, and then there is nothing to copy.
+private_adjacency(G::Graph) = copy(G.xadj), G.adjncy isa Vector ? copy(G.adjncy) : G.adjncy
+
 """
     perm, iperm = Metis.permutation(G)
 
@@ -180,7 +185,8 @@ permutation(G) = permutation(graph(G))
 function permutation(G::Graph)
     perm = Vector{idx_t}(undef, G.nvtxs)
     iperm = Vector{idx_t}(undef, G.nvtxs)
-    @check METIS_NodeND(Ref{idx_t}(G.nvtxs), G.xadj, G.adjncy, G.vwgt, options, perm, iperm)
+    xadj, adjncy = private_adjacency(G)
+    @check METIS_NodeND(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, options, perm, iperm)
     return perm, iperm
 end
 
@@ -198,11 +204,12 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
     part = Vector{idx_t}(undef, G.nvtxs)
     nparts == 1 && return fill!(part, 1) # https://github.com/JuliaSparse/Metis.jl/issues/49
     edgecut = fill(idx_t(0), 1)
+    xadj, adjncy = private_adjacency(G)
     if alg === :RECURSIVE
-        @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, G.adjwgt,
+        @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), xadj, adjncy, G.vwgt, C_NULL, G.adjwgt,
                                         Ref{idx_t}(nparts), C_NULL, C_NULL, options, edgecut, part)
     elseif alg === :KWAY
-        @check METIS_PartGraphKway(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, G.adjwgt,
+        @check METIS_PartGraphKway(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), xadj, adjncy, G.vwgt, C_NULL, G.adjwgt,
                                    Ref{idx_t}(nparts), C_NULL, C_NULL, options, edgecut, part)
     else
         throw(ArgumentError("unknown algorithm $(repr(alg))"))
