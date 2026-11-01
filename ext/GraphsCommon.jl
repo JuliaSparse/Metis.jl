@@ -4,7 +4,7 @@
 # `outneighbors` following the Graphs.jl meanings.
 
 using Metis.LibMetis: idx_t
-using Metis: Graph
+using Metis: Graph, edge_weight
 
 function graph(G; weights::Bool=false, kwargs...)
     N = nv(G)
@@ -22,11 +22,7 @@ function graph(G; weights::Bool=false, kwargs...)
             adjncy_i += 1
             adjncy[adjncy_i] = i
             if weights
-                weight = get_weight(G, j, i)
-                if !(isinteger(weight) && weight > 0)
-                    error("weights must be positive integers, got weight $(weight) for edge ($(j), $(i))")
-                end
-                adjwgt[adjncy_i] = weight
+                adjwgt[adjncy_i] = edge_weight(get_weight(G, j, i), j, i)
             end
         end
         xadj[j+1] = xadj[j] + ne
