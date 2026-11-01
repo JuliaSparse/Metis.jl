@@ -168,6 +168,12 @@ end
     # Graphs without edges or vertices are valid
     @test Metis.check_graph(Metis.Graph(n, ones(idx, 4), idx[])) === nothing
     @test Metis.check_graph(Metis.Graph(idx(0), idx[1], idx[])) === nothing
+    # adjncy can be C_NULL for a graph without edges
+    edgeless = Metis.Graph(n, ones(idx, 4), C_NULL)
+    @test length(Metis.partition(edgeless, 2)) == 3
+    @test length(Metis.partition(edgeless, 2; alg=:RECURSIVE)) == 3
+    @test isperm(Metis.permutation(edgeless)[1])
+    @test length(Metis.separator(edgeless)) == 3
 
     # The error explains the two common causes
     err = try

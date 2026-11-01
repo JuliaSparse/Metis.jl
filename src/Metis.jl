@@ -191,7 +191,7 @@ function check_graph(G::Graph)
         throw(ArgumentError("xadj must be a 1-based, non-decreasing vector of length nvtxs + 1"))
     end
     m = Int(xadj[end]) - 1
-    if !(adjncy isa Vector{idx_t} && length(adjncy) >= m)
+    if m > 0 && !(adjncy isa Vector{idx_t} && length(adjncy) >= m)
         throw(ArgumentError("adjncy must be a vector with at least xadj[end] - 1 elements"))
     end
     if G.vwgt isa Vector && length(G.vwgt) != n
@@ -200,6 +200,7 @@ function check_graph(G::Graph)
     if G.adjwgt isa Vector && length(G.adjwgt) < m
         throw(ArgumentError("adjwgt must have at least xadj[end] - 1 elements"))
     end
+    m == 0 && return nothing # adjncy can be C_NULL for a graph without edges
     src = Vector{idx_t}(undef, m)
     for v in 1:n, k in xadj[v]:(xadj[v+1] - 1)
         u = adjncy[k]
