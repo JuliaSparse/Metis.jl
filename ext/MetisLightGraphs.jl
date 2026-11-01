@@ -6,7 +6,7 @@ using LightGraphs: AbstractSimpleGraph, has_edge, is_directed, ne, nv, outneighb
 using Metis: Metis
 
 """
-    graph(G::LightGraphs.AbstractSimpleGraph; weights=false, check=true) :: Metis.Graph
+    Metis.graph(G::LightGraphs.AbstractSimpleGraph; weights=false, check=true) :: Metis.Graph
 
 Construct the 1-based CSR representation of the (unweighted) graph `G`.
 If `weights=true` all edges get the weight 1.

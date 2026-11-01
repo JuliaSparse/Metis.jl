@@ -7,7 +7,7 @@ using Metis: Metis
 using SimpleWeightedGraphs: AbstractSimpleWeightedGraph, get_weight
 
 """
-    graph(G::SimpleWeightedGraphs.AbstractSimpleGraph; weights=true, check=true) :: Metis.Graph
+    Metis.graph(G::SimpleWeightedGraphs.AbstractSimpleWeightedGraph; weights=true, check=true) :: Metis.Graph
 
 Construct the 1-based CSR representation of the weighted graph `G`.
 If `check=true` an `ArgumentError` is thrown if `G` is directed and has an edge without a
