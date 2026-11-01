@@ -54,6 +54,23 @@ end
     end
 end
 
+@testset "Metis.graph rejects unknown keywords for graph types" begin
+    GG = Graphs.smallgraph(:house)
+    LG = LightGraphs.smallgraph(:house)
+    Gs = Any[GG, LG]
+    if isdefined(Base, :get_extension)
+        import SimpleWeightedGraphs
+        push!(Gs, SimpleWeightedGraphs.SimpleWeightedGraph(GG))
+    end
+    for G in Gs
+        @test_throws MethodError Metis.graph(G; weight=true)
+        @test_throws MethodError Metis.graph(G; check_hermitian=false)
+        g = Metis.graph(G; weights=false)
+        @test g.adjwgt == C_NULL
+        @test length(g.adjncy) == 2 * Graphs.ne(GG)
+    end
+end
+
 @testset "Metis.permutation" begin
     rng = MersenneTwister(0)
     S = sprand(rng, 10, 10, 0.5); S = S + S'; fill!(S.nzval, 1)

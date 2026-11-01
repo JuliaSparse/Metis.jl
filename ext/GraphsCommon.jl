@@ -6,7 +6,7 @@
 using Metis.LibMetis: idx_t
 using Metis: Graph
 
-function graph(G; weights::Bool=false, kwargs...)
+function graph(G; weights::Bool=false)
     N = nv(G)
     xadj = Vector{idx_t}(undef, N+1)
     xadj[1] = 1
