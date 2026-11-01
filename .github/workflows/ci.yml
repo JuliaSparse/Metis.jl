@@ -15,17 +15,12 @@ jobs:
     strategy:
       matrix:
         version:
-          - '1.6' # LTS
-          - '1'   # Latest 1.X
-          - '~1.9.0-0'
-          - 'nightly'
+          - '1'
+          - 'min'
         os:
           - ubuntu-latest
-        include:
-          - os: windows-latest
-            version: '1'
-          - os: macOS-latest
-            version: '1'
+          - windows-latest
+          - macOS-latest
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
