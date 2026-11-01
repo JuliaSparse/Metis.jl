@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: MIT
 
-# The extension module loading this file is required to define `nv`, `ne`, and
-# `outneighbors` following the Graphs.jl meanings.
+# The extension module loading this file is required to define `nv`, `ne`,
+# `outneighbors`, and `get_weight` following the Graphs.jl and SimpleWeightedGraphs.jl
+# meanings.
 
 using Metis.LibMetis: idx_t
 using Metis: Graph
