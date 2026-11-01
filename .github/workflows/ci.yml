@@ -16,15 +16,12 @@ jobs:
       matrix:
         version:
           - '1'
-          - 'min'
         os:
           - ubuntu-latest
           - windows-latest
           - macOS-latest
-        exclude:
-          - os: windows-latest
-            version: 'min'
-          - os: macOS-latest
+        include:
+          - os: ubuntu-latest
             version: 'min'
     steps:
       - uses: actions/checkout@v2
