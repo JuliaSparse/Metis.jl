@@ -54,6 +54,43 @@ end
     end
 end
 
+@testset "Edge weight validation" begin
+    # Stored zeros are kept by `sparse`, so they are seen as edges
+    for w in (0, 0.0, -5, -5.0, 0.5, 1 + 2im)
+        S = sparse([1, 2], [2, 1], [w, conj(w)])
+        @test_throws ArgumentError Metis.graph(S; weights=true)
+        # The weights are only validated when they are used
+        @test Metis.graph(S).adjwgt == C_NULL
+    end
+    # The message names the offending entry of the matrix
+    A = sparse([2, 1], [1, 2], [-5, 3])
+    err = try
+        Metis.graph(A; weights=true, check_hermitian=false)
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    @test occursin("got weight -5 for edge (2, 1)", err.msg)
+    # Real integers stored as other types are valid
+    for w in (2, 2.0, 2 + 0im, 2.0 + 0.0im, 2//1)
+        @test Metis.graph(sparse([1, 2], [2, 1], [w, w]); weights=true).adjwgt == [2, 2]
+    end
+    # Self edges are skipped, so diagonal entries are not validated
+    S = sparse([1, 2, 1, 2], [1, 2, 2, 1], [0, -1, 3, 3])
+    g = Metis.graph(S; weights=true)
+    @test g.adjncy == [2, 1]
+    @test g.adjwgt == [3, 3]
+    # The graph extensions use the same validation
+    if isdefined(Base, :get_extension)
+        import SimpleWeightedGraphs
+        for w in (-5, 0.5)
+            G = SimpleWeightedGraphs.SimpleWeightedGraph([1], [2], [w])
+            @test_throws ArgumentError Metis.graph(G)
+        end
+        @test Metis.graph(SimpleWeightedGraphs.SimpleWeightedGraph([1], [2], [2.0])).adjwgt == [2, 2]
+    end
+end
+
 @testset "Metis.permutation" begin
     rng = MersenneTwister(0)
     S = sprand(rng, 10, 10, 0.5); S = S + S'; fill!(S.nzval, 1)

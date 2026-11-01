@@ -33,6 +33,14 @@ struct Graph
     end
 end
 
+# Convert the weight `w` of the edge `(i, j)` to the integer type used by Metis.
+# Checks `isreal` since a complex Hermitian matrix can store real integers as `Complex`.
+function edge_weight(w, i, j)
+    if !(isreal(w) && isinteger(real(w)) && real(w) > 0)
+        throw(ArgumentError("weights must be positive integers, got weight $(w) for edge ($(i), $(j))"))
+    end
+    return idx_t(real(w))
+end
 
 """
     Metis.graph(G::SparseMatrixCSC; weights=false, check_hermitian=true)
@@ -40,7 +48,9 @@ end
 Construct the 1-based CSR representation of the sparse matrix `G`.
 If `check_hermitian` is `false` the matrix is not checked for being hermitian
 before constructing the graph.
-If `weights=true` the entries of the matrix are used as edge weights.
+If `weights=true` the entries of the matrix are used as edge weights. These must be positive
+integers, otherwise an `ArgumentError` is thrown. This includes explicitly stored zeros, which
+can be removed with `SparseArrays.dropzeros`. Diagonal entries are ignored.
 """
 function graph(G::SparseMatrixCSC; weights::Bool=false, check_hermitian::Bool=true)
     if check_hermitian
@@ -62,7 +72,7 @@ function graph(G::SparseMatrixCSC; weights::Bool=false, check_hermitian::Bool=tr
             adjncy_i += 1
             adjncy[adjncy_i] = i
             if weights
-                adjwgt[adjncy_i] = G.nzval[k]
+                adjwgt[adjncy_i] = edge_weight(G.nzval[k], i, j)
             end
         end
         xadj[j+1] = xadj[j] + n_rows
