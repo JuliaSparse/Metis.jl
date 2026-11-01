@@ -24,6 +24,7 @@ MetisSimpleWeightedGraphs = ["SimpleWeightedGraphs", "Graphs"]
 CEnum = "0.4, 0.5, 1.0"
 Graphs = "1"
 LightGraphs = "1"
+LinearAlgebra = "<0.0.1, 1.6"
 METIS_jll = "5.1"
 SimpleWeightedGraphs = "1"
 SparseArrays = "<0.0.1, 1.6"
