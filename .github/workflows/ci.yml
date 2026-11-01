@@ -26,6 +26,8 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
+          # Julia 1.6 has no aarch64 macOS binaries, so run x64 under Rosetta
+          arch: ${{ (matrix.os == 'macOS-latest' && matrix.version == 'min') && 'x64' || 'default' }}
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
