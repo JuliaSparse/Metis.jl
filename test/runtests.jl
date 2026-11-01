@@ -122,6 +122,32 @@ end
     end
 end
 
+@testset "Metis.partition argument validation" begin
+    S = Graphs.adjacency_matrix(Graphs.cycle_graph(8))
+    for alg in (:RECURSIVE, :KWAY), nparts in (0, -1)
+        @test_throws ArgumentError Metis.partition(S, nparts; alg=alg)
+    end
+    for nparts in (1, 2)
+        @test_throws ArgumentError Metis.partition(S, nparts; alg=:BOGUS)
+    end
+    # More parts than vertices is an error, as many parts as vertices is fine
+    C4 = Graphs.adjacency_matrix(Graphs.cycle_graph(4))
+    for alg in (:RECURSIVE, :KWAY)
+        @test_throws ArgumentError Metis.partition(C4, 5; alg=alg)
+        part = Metis.partition(C4, 4; alg=alg)
+        @test length(part) == 4
+        @test all(in(1:4), part)
+    end
+    # A graph without vertices can only be partitioned into one part
+    E = spzeros(Int, 0, 0)
+    for alg in (:RECURSIVE, :KWAY)
+        part = Metis.partition(E, 1; alg=alg)
+        @test part isa Vector
+        @test isempty(part)
+        @test_throws ArgumentError Metis.partition(E, 2; alg=alg)
+    end
+end
+
 @testset "Metis.separator" begin
     T = Graphs.smallgraph(:tutte)
     S = Graphs.adjacency_matrix(T)
