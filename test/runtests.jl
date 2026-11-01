@@ -54,6 +54,32 @@ end
     end
 end
 
+@testset "Metis.graph(::AbstractSimpleGraph; weights=true)" begin
+    # Built by hand since `LightGraphs.path_graph` only exists in newer LightGraphs versions
+    LG = LightGraphs.SimpleGraph(3)
+    LightGraphs.add_edge!(LG, 1, 2)
+    LightGraphs.add_edge!(LG, 2, 3)
+    for (G, T) in ((Graphs.path_graph(3), Graphs.smallgraph(:tutte)),
+                   (LG, LightGraphs.smallgraph(:tutte)))
+        g = Metis.graph(G)
+        gw = Metis.graph(G; weights=true)
+        @test g.adjwgt == C_NULL
+        @test gw.adjwgt == [1, 1, 1, 1]
+        @test gw.xadj == g.xadj
+        @test gw.adjncy == g.adjncy
+        for alg in (:RECURSIVE, :KWAY)
+            # Unit weights partition like no weights. Only the larger graph is checked for
+            # non-empty parts: :KWAY puts this path graph in one part, with or without weights.
+            partition = Metis.partition(gw, 2, alg = alg)
+            @test all(in(1:2), partition)
+            @test partition == Metis.partition(G, 2, alg = alg)
+            partition = Metis.partition(Metis.graph(T; weights=true), 3, alg = alg)
+            @test extrema(partition) == (1, 3)
+            @test partition == Metis.partition(T, 3, alg = alg)
+        end
+    end
+end
+
 @testset "Metis.permutation" begin
     rng = MersenneTwister(0)
     S = sprand(rng, 10, 10, 0.5); S = S + S'; fill!(S.nzval, 1)
