@@ -22,9 +22,9 @@ function graph(G; weights::Bool=false, kwargs...)
             adjncy_i += 1
             adjncy[adjncy_i] = i
             if weights
-                weight = get_weight(G, i, j)
+                weight = get_weight(G, j, i)
                 if !(isinteger(weight) && weight > 0)
-                    error("weights must be positive integers, got weight $(weight) for edge ($(i), $(j))")
+                    error("weights must be positive integers, got weight $(weight) for edge ($(j), $(i))")
                 end
                 adjwgt[adjncy_i] = weight
             end

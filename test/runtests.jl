@@ -39,6 +39,21 @@ end
     end
 end
 
+@testset "Metis.graph(::SimpleWeightedDiGraph)" begin
+    if isdefined(Base, :get_extension)
+        import SimpleWeightedGraphs
+        # Issue #56: the weight must be that of the edge from j to i
+        g = Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1], [2], [1]))
+        @test g.xadj == [1, 2, 2]
+        @test g.adjncy == [2]
+        @test g.adjwgt == [1]
+        g = Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2], [2, 1], [3, 5]))
+        @test g.xadj == [1, 2, 3]
+        @test g.adjncy == [2, 1]
+        @test g.adjwgt == [3, 5]
+    end
+end
+
 @testset "Metis.permutation" begin
     rng = MersenneTwister(0)
     S = sprand(rng, 10, 10, 0.5); S = S + S'; fill!(S.nzval, 1)
