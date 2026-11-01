@@ -214,6 +214,10 @@ end
     Metis.separator(G)
 
 Compute a vertex separator of the graph `G`.
+
+Return a vector with one label per vertex: `1` and `2` for the two parts and `3` for the
+separator. No edge joins part `1` and part `2`. A part or the separator can be empty, in
+which case its label is missing from the result.
 """
 separator(G) = separator(graph(G))
 
