@@ -21,13 +21,16 @@ jobs:
           - ubuntu-latest
           - windows-latest
           - macOS-latest
+        exclude:
+          - os: windows-latest
+            version: 'min'
+          - os: macOS-latest
+            version: 'min'
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
-          # Julia 1.6 has no aarch64 macOS binaries, so run x64 under Rosetta
-          arch: ${{ (matrix.os == 'macOS-latest' && matrix.version == 'min') && 'x64' || 'default' }}
       - uses: julia-actions/cache@v1
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
