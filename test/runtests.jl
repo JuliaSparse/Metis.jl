@@ -106,3 +106,28 @@ end
         @test extrema(parts) == (1, 3)
     end
 end
+
+@testset "Edge weights of SimpleWeightedGraphs that are invalid for Metis" begin
+    if isdefined(Base, :get_extension)
+        import SimpleWeightedGraphs
+        g = SimpleWeightedGraphs.SimpleWeightedGraph([1, 2, 3], [2, 3, 4], [0.5, 1.5, 2.5])
+        perm, iperm = Metis.permutation(g)
+        @test isperm(perm)
+        @test isperm(iperm)
+        @test length(perm) == 4
+        parts = Metis.separator(g)
+        @test length(parts) == 4
+        @test all(in(1:3), parts)
+        # Edge weights are ignored, so the results are those of the unweighted graph
+        T = Graphs.smallgraph(:tutte)
+        G = SimpleWeightedGraphs.SimpleWeightedGraph(Graphs.nv(T))
+        for edge in Graphs.edges(T)
+            SimpleWeightedGraphs.add_edge!(G, Graphs.src(edge), Graphs.dst(edge), 0.5)
+        end
+        @test Metis.permutation(G) == Metis.permutation(T)
+        @test Metis.separator(G) == Metis.separator(T)
+        # METIS_PartGraph* do use edge weights, so they must still be rejected
+        @test_throws Union{ErrorException, ArgumentError} Metis.partition(g, 2)
+        @test_throws Union{ErrorException, ArgumentError} Metis.partition(G, 3)
+    end
+end
