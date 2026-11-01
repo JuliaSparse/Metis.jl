@@ -191,10 +191,18 @@ Partition the graph `G` in `n` parts.
 The partition algorithm is defined by the `alg` keyword:
  - :KWAY: multilevel k-way partitioning
  - :RECURSIVE: multilevel recursive bisection
+
+An `ArgumentError` is thrown for any other `alg`, and if `n` is less than 1. If `n` is larger
+than the number of vertices a warning is logged, since some parts are necessarily empty.
 """
 partition(G, nparts; alg = :KWAY) = partition(graph(G), nparts, alg = alg)
 
 function partition(G::Graph, nparts::Integer; alg = :KWAY)
+    alg === :RECURSIVE || alg === :KWAY || throw(ArgumentError("unknown algorithm $(repr(alg))"))
+    nparts < 1 && throw(ArgumentError("the number of parts must be at least 1, got $(nparts)"))
+    if nparts > G.nvtxs
+        @warn "The number of parts ($(nparts)) is larger than the number of vertices ($(G.nvtxs)), so some parts will be empty"
+    end
     part = Vector{idx_t}(undef, G.nvtxs)
     nparts == 1 && return fill!(part, 1) # https://github.com/JuliaSparse/Metis.jl/issues/49
     edgecut = fill(idx_t(0), 1)
@@ -204,8 +212,6 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
     elseif alg === :KWAY
         @check METIS_PartGraphKway(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, G.adjwgt,
                                    Ref{idx_t}(nparts), C_NULL, C_NULL, options, edgecut, part)
-    else
-        throw(ArgumentError("unknown algorithm $(repr(alg))"))
     end
     return part
 end
