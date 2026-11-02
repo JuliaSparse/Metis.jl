@@ -131,5 +131,7 @@ end
     for G in (S, T, TL, SG)
         parts = Metis.separator(G)
         @test extrema(parts) == (1, 3)
+        # Part 1 and part 2 are only connected through the separator
+        @test all(e -> minmax(parts[Graphs.src(e)], parts[Graphs.dst(e)]) != (1, 2), Graphs.edges(T))
     end
 end
