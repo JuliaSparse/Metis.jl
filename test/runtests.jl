@@ -21,6 +21,16 @@ import LightGraphs, Graphs
     @test iszero(S - GW)
 end
 
+@testset "Metis.graph(::SparseMatrixCSC) rejects non-square matrices" begin
+    # Compare the full exception: a non-square matrix already fails the Hermitian check.
+    for check_hermitian in (true, false)
+        tall = sparse([10], [5], [1], 10, 5)
+        @test_throws ArgumentError("matrix must be square, got size (10, 5)") Metis.graph(tall; check_hermitian)
+        wide = sparse([1], [9], [1], 3, 10)
+        @test_throws ArgumentError("matrix must be square, got size (3, 10)") Metis.graph(wide; check_hermitian)
+    end
+end
+
 @testset "Metis.graph(::Union{Hermitian, Symmetric})" begin
     rng = MersenneTwister(0)
     for T in (Symmetric, Hermitian), uplo in (:U, :L)

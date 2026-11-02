@@ -37,12 +37,13 @@ end
 """
     Metis.graph(G::SparseMatrixCSC; weights=false, check_hermitian=true)
 
-Construct the 1-based CSR representation of the sparse matrix `G`.
+Construct the 1-based CSR representation of the square sparse matrix `G`.
 If `check_hermitian` is `false` the matrix is not checked for being hermitian
 before constructing the graph.
 If `weights=true` the entries of the matrix are used as edge weights.
 """
 function graph(G::SparseMatrixCSC; weights::Bool=false, check_hermitian::Bool=true)
+    size(G, 1) == size(G, 2) || throw(ArgumentError("matrix must be square, got size $(size(G))"))
     if check_hermitian
         ishermitian(G) || throw(ArgumentError("matrix must be Hermitian"))
     end
