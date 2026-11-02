@@ -53,6 +53,12 @@ results in a sparser factorization:
 |:----------------------------- |:--------------------------------------- |
 | `chol(S)` (16% stored values) | `chol(S[perm,perm])` (6% stored values) |
 
+## Calling from several threads
+`Metis.partition`, `Metis.permutation` and `Metis.separator` can be called concurrently,
+including on the same `Metis.Graph`. Results from concurrent calls are valid, but not
+reproducible: they can differ between runs and from the result of a sequential call.
+Sequential calls always give the same result, also when made from different threads.
+
 ## Direct access to the Metis C API
 For more fine tuned usage of Metis consider calling the C API directly.
 The following functions are currently exposed:

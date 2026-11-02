@@ -122,6 +122,32 @@ end
     end
 end
 
+@testset "Using the same Metis.Graph from several tasks" begin
+    # Metis renumbers xadj and adjncy in place during a call, so tasks on different threads
+    # sharing the arrays of a Graph used to crash or hang. Results may differ between tasks.
+    n = 100^2
+    g = Metis.graph(Graphs.adjacency_matrix(Graphs.grid([100, 100])))
+    xadj, adjncy = copy(g.xadj), copy(g.adjncy)
+    is_partition(p) = length(p) == n && sort!(unique(p)) == 1:8
+    is_permutation((perm, iperm)) = length(perm) == n && isperm(perm) && invperm(perm) == iperm
+    cases = (
+        (g -> Metis.partition(g, 8; alg = :KWAY), is_partition),
+        (g -> Metis.partition(g, 8; alg = :RECURSIVE), is_partition),
+        (Metis.permutation, is_permutation),
+    )
+    for _ in 1:5, (f, isvalid) in cases
+        tasks = [Threads.@spawn(f(g)) for _ in 1:(4 * Threads.nthreads())]
+        @test all(isvalid, fetch.(tasks))
+    end
+    @test g.xadj == xadj
+    @test g.adjncy == adjncy
+
+    # adjncy can be C_NULL for a graph without edges
+    edgeless = Metis.Graph(3, ones(Metis.idx_t, 4), C_NULL)
+    @test all(in(1:2), Metis.partition(edgeless, 2))
+    @test isperm(Metis.permutation(edgeless)[1])
+end
+
 @testset "Metis.separator" begin
     T = Graphs.smallgraph(:tutte)
     S = Graphs.adjacency_matrix(T)

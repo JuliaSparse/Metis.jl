@@ -23,6 +23,8 @@ jobs:
         include:
           - os: ubuntu-latest
             version: 'min'
+    env:
+      JULIA_NUM_THREADS: 4
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
