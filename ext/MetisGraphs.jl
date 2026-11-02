@@ -10,7 +10,7 @@ using Metis: Metis
 
 Construct the 1-based CSR representation of the (unweighted) graph `G`.
 """
-Metis.graph(G::AbstractSimpleGraph; kwargs...) = graph(G; kwargs...)
+Metis.graph(G::AbstractSimpleGraph; weights::Bool=false) = graph(G; weights=weights)
 
 include("GraphsCommon.jl")
 

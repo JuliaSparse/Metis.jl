@@ -11,8 +11,8 @@ using SimpleWeightedGraphs: AbstractSimpleWeightedGraph, get_weight
 
 Construct the 1-based CSR representation of the weighted graph `G`.
 """
-function Metis.graph(G::AbstractSimpleWeightedGraph; weights::Bool=true, kwargs...)
-    return graph(G; weights=weights, kwargs...)
+function Metis.graph(G::AbstractSimpleWeightedGraph; weights::Bool=true)
+    return graph(G; weights=weights)
 end
 
 include("GraphsCommon.jl")
