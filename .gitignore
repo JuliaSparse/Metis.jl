@@ -5,4 +5,5 @@ deps/usr
 deps/deps.jl
 deps/build.log
 /Manifest.toml
+/gen/Manifest.toml
 /test/coverage/Manifest.toml
