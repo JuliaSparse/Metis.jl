@@ -7,7 +7,7 @@ using Metis: Metis
 using SimpleWeightedGraphs: AbstractSimpleWeightedGraph, get_weight
 
 """
-    graph(G::SimpleWeightedGraphs.AbstractSimpleGraph; weights=true) :: Metis.Graph
+    Metis.graph(G::SimpleWeightedGraphs.AbstractSimpleWeightedGraph; weights=true) :: Metis.Graph
 
 Construct the 1-based CSR representation of the weighted graph `G`.
 """

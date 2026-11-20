@@ -6,7 +6,7 @@ using LightGraphs: AbstractSimpleGraph, ne, nv, outneighbors
 using Metis: Metis
 
 """
-    graph(G::LightGraphs.AbstractSimpleGraph) :: Metis.Graph
+    Metis.graph(G::LightGraphs.AbstractSimpleGraph) :: Metis.Graph
 
 Construct the 1-based CSR representation of the (unweighted) graph `G`.
 """
