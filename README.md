@@ -85,8 +85,7 @@ and a larger load imbalance:
 Metis.partition(g, 4; options = Metis.Options(seed = 42, ufactor = 100))
 ```
 See the docstring of `Metis.Options` for the available options, and the
-[Metis manual][metis-manual-url] for their meaning. Setting options in the global
-`Metis.options` array instead is deprecated.
+[Metis manual][metis-manual-url] for their meaning.
 
 ## Calling from several threads
 The Metis C library has global state, so `Metis.partition`, `Metis.permutation` and

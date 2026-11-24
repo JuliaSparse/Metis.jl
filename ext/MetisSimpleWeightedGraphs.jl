@@ -21,9 +21,9 @@ end
 
 # METIS_NodeND and METIS_ComputeVertexSeparator don't take edge weights, so don't
 # require the weights of `G` to be valid for Metis.
-Metis.permutation(G::AbstractSimpleWeightedGraph; options::Union{Metis.Options, Nothing} = nothing) =
+Metis.permutation(G::AbstractSimpleWeightedGraph; options::Metis.Options = Metis.Options()) =
     Metis.permutation(graph(G; weights=false); options)
-Metis.separator(G::AbstractSimpleWeightedGraph; options::Union{Metis.Options, Nothing} = nothing) =
+Metis.separator(G::AbstractSimpleWeightedGraph; options::Metis.Options = Metis.Options()) =
     Metis.separator(graph(G; weights=false); options)
 
 include("GraphsCommon.jl")

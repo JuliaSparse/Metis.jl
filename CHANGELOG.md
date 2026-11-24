@@ -5,7 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Removed
+These are breaking changes for 2.0, removing what was deprecated in 1.x:
+ - The global `Metis.options` array. Use `Metis.Options`, with the `options` keyword argument
+   of `Metis.partition`, `Metis.permutation` and `Metis.separator`, or when calling the C API
+   directly.
+ - Passing the `alg` keyword argument of `Metis.partition` as a symbol. Use
+   `Metis.Algorithm.KWAY` or `Metis.Algorithm.RECURSIVE`.
+ - The `check_hermitian` keyword argument of `Metis.graph(::SparseMatrixCSC)`. Use `check`.
+
 ## [v1.7.0] - 2026-11-24
+
 ### Added
  - `Metis.Options` for setting Metis options, passed to `Metis.partition`,
    `Metis.permutation` and `Metis.separator` with the new `options` keyword argument, e.g.
