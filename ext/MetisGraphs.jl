@@ -6,7 +6,7 @@ using Graphs: AbstractSimpleGraph, has_edge, is_directed, ne, nv, outneighbors
 using Metis: Metis
 
 """
-    graph(G::Graphs.AbstractSimpleGraph; weights=false, check=true) :: Metis.Graph
+    Metis.graph(G::Graphs.AbstractSimpleGraph; weights=false, check=true) :: Metis.Graph
 
 Construct the 1-based CSR representation of the (unweighted) graph `G`.
 If `weights=true` all edges get the weight 1.
