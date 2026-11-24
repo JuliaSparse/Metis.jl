@@ -23,9 +23,7 @@ C API, depending on the optional keyword argument `alg`:
 
 ### Edge weights
 `Metis.partition` uses edge weights when the graph has them:
- - Graphs from SimpleWeightedGraphs.jl use their weights by default. This requires Julia 1.9
-   or later, since the fallback for Julia versions without package extensions doesn't
-   include SimpleWeightedGraphs support.
+ - Graphs from SimpleWeightedGraphs.jl use their weights by default.
  - The values of a sparse matrix `S` are ignored by default. To use them as edge weights,
    call `Metis.partition(Metis.graph(S; weights = true), n)`. `weights = true` isn't
    supported for `Hermitian` or `Symmetric` wrapped matrices.
