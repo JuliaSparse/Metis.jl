@@ -15,7 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    Metis defaults. An `Options` can also be passed directly to the C API functions ([#52],
    [#82]).
 
+ - `Metis.Algorithm` enum for the `alg` keyword argument of `Metis.partition`, e.g.
+   `Metis.partition(G, 4; alg = Metis.Algorithm.RECURSIVE)` ([#83]).
+
 ### Deprecated
+ - Passing the `alg` keyword argument of `Metis.partition` as a symbol (`:KWAY` or
+   `:RECURSIVE`) is deprecated in favour of `Metis.Algorithm`. Symbols still work, but give
+   a deprecation warning ([#83]).
  - Setting options in the global `Metis.options` array for `Metis.partition`,
    `Metis.permutation` and `Metis.separator` is deprecated in favour of `Metis.Options`.
    Without the `options` keyword argument, options set there are still used, but give a
@@ -94,3 +100,4 @@ calls that ran before therefore throw now; see the entries under Changed.
 [#79]: https://github.com/JuliaSparse/Metis.jl/issues/79
 [#81]: https://github.com/JuliaSparse/Metis.jl/issues/81
 [#82]: https://github.com/JuliaSparse/Metis.jl/issues/82
+[#83]: https://github.com/JuliaSparse/Metis.jl/issues/83
