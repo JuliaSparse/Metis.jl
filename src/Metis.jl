@@ -3,7 +3,7 @@
 module Metis
 
 using SparseArrays
-using LinearAlgebra: ishermitian, issymmetric, Hermitian, Symmetric
+using LinearAlgebra: Hermitian, Symmetric
 using METIS_jll: libmetis
 
 # Metis C API: Clang.jl auto-generated bindings and some manual methods
@@ -22,11 +22,10 @@ options[Int(METIS_OPTION_NUMBERING)+1] = 1
 1-based CSR representation of a graph as defined in
 section 5.5 "Graph data structure" in the Metis manual.
 
-Metis requires a graph with symmetric structure and no self edges: every edge `i → j` must have
-a matching edge `j → i`, so a directed graph has to contain both directions of each edge. The
-weights of `i → j` and `j → i` are not compared. Metis doesn't validate its input and can crash
-or hang otherwise, so `Metis.partition`, `Metis.permutation` and `Metis.separator` throw an
-`ArgumentError` for a `Graph` that doesn't satisfy this or is otherwise malformed.
+Metis requires a graph with symmetric structure and no self edges or duplicate edges: every
+edge `i → j` must be stored once, with a matching edge `j → i` of the same weight. Metis doesn't
+validate its input and can crash, hang or give invalid results otherwise. `Metis.graph` checks
+this when converting other types, but a `Graph` constructed directly is passed to Metis as is.
 """
 struct Graph
     nvtxs::idx_t
@@ -48,27 +47,68 @@ function edge_weight(w, i, j)
     return idx_t(real(w))
 end
 
+# Find a stored entry (i, j) off the diagonal of the square matrix G without a stored entry
+# (j, i), or, if `values` is true, with a different value than the entry (j, i). Return
+# `(i, j, :pattern)` or `(i, j, :value)` for the first one found, and `nothing` if there is
+# none. Unlike `issymmetric` this considers stored zeros, and unlike comparing with the
+# transpose it doesn't allocate.
+function find_asymmetry(G::SparseMatrixCSC, values::Bool)
+    rows = rowvals(G)
+    vals = nonzeros(G)
+    for j in axes(G, 2), k in nzrange(G, j)
+        i = rows[k]
+        i == j && continue
+        r = nzrange(G, i)
+        l = searchsortedfirst(view(rows, r), j)
+        (l <= length(r) && rows[r[l]] == j) || return (i, j, :pattern)
+        values && vals[r[l]] != vals[k] && return (i, j, :value)
+    end
+    return nothing
+end
+
 """
-    Metis.graph(G::SparseMatrixCSC; weights=false, check_hermitian=true)
+    Metis.graph(G::SparseMatrixCSC; weights=false, check=true)
 
 Construct the 1-based CSR representation of the square sparse matrix `G`.
-If `check_hermitian` is `false` the matrix is not checked for being hermitian
-before constructing the graph.
+Every stored entry off the diagonal becomes an edge, including explicitly stored zeros.
+
+Metis requires the stored entries to have a symmetric pattern, and with `weights=true` also
+symmetric values, i.e. the same weight in both directions of each edge. If `check` is `true`
+this is checked and an `ArgumentError` is thrown otherwise. A stored zero at `(i, j)` without a
+stored entry at `(j, i)` breaks the pattern, and can be removed with `SparseArrays.dropzeros`.
+If `check` is `false` nothing is checked, and Metis can crash or give invalid results for a
+matrix that doesn't satisfy this.
+
 If `weights=true` the entries of the matrix are used as edge weights. These must be positive
 integers, otherwise an `ArgumentError` is thrown. This includes explicitly stored zeros, which
 can be removed with `SparseArrays.dropzeros`. Diagonal entries are ignored.
-
-Every stored entry off the diagonal becomes an edge, including explicitly stored zeros. A stored
-zero at `(i, j)` without a stored entry at `(j, i)` passes the Hermitian check, which compares
-values, but gives a one-way edge that `Metis.partition`, `Metis.permutation` and
-`Metis.separator` reject with an `ArgumentError`. Remove such entries with
-`SparseArrays.dropzeros`. The same functions reject any other matrix with asymmetric structure,
-e.g. a triangular matrix with `check_hermitian=false`.
 """
-function graph(G::SparseMatrixCSC; weights::Bool=false, check_hermitian::Bool=true)
+function graph(G::SparseMatrixCSC; weights::Bool=false, check::Bool=true,
+               check_hermitian::Union{Bool, Nothing}=nothing)
+    if check_hermitian !== nothing
+        Base.depwarn("the `check_hermitian` keyword argument is deprecated, use `check` instead", :graph)
+        check = check_hermitian
+    end
     size(G, 1) == size(G, 2) || throw(ArgumentError("matrix must be square, got size $(size(G))"))
-    if check_hermitian
-        ishermitian(G) || throw(ArgumentError("matrix must be Hermitian"))
+    if check
+        asymmetry = find_asymmetry(G, weights)
+        if asymmetry !== nothing
+            i, j, kind = asymmetry
+            if kind === :pattern
+                throw(ArgumentError(
+                    "the stored entries of the matrix must have a symmetric pattern, since each " *
+                    "of them becomes an edge, but entry ($(i), $(j)) is stored and entry " *
+                    "($(j), $(i)) isn't. One-sided stored zeros can be removed with " *
+                    "`SparseArrays.dropzeros`."
+                ))
+            else
+                throw(ArgumentError(
+                    "with `weights=true` the matrix must be symmetric, since its values are the " *
+                    "edge weights, but entry ($(i), $(j)) is $(G[i, j]) and entry ($(j), $(i)) " *
+                    "is $(G[j, i])"
+                ))
+            end
+        end
     end
     N = size(G, 1)
     xadj = Vector{idx_t}(undef, N+1)
@@ -193,46 +233,6 @@ function graph(H::HermOrSymCSC; weights::Bool=false)
     return Graph(idx_t(N), xadj, adjncy, vwgt, adjwgt)
 end
 
-# Metis doesn't validate its input and can crash or hang on a graph that doesn't follow the
-# format described in the manual, so check this before calling it.
-function check_graph(G::Graph)
-    n = Int(G.nvtxs)
-    xadj, adjncy = G.xadj, G.adjncy
-    if !(n >= 0 && length(xadj) == n + 1 && xadj[1] == 1 && issorted(xadj))
-        throw(ArgumentError("xadj must be a 1-based, non-decreasing vector of length nvtxs + 1"))
-    end
-    m = Int(xadj[end]) - 1
-    if m > 0 && !(adjncy isa Vector{idx_t} && length(adjncy) >= m)
-        throw(ArgumentError("adjncy must be a vector with at least xadj[end] - 1 elements"))
-    end
-    if G.vwgt isa Vector && length(G.vwgt) != n
-        throw(ArgumentError("vwgt must have nvtxs elements"))
-    end
-    if G.adjwgt isa Vector && length(G.adjwgt) < m
-        throw(ArgumentError("adjwgt must have at least xadj[end] - 1 elements"))
-    end
-    m == 0 && return nothing # adjncy can be C_NULL for a graph without edges
-    src = Vector{idx_t}(undef, m)
-    for v in 1:n, k in xadj[v]:(xadj[v+1] - 1)
-        u = adjncy[k]
-        if !(1 <= u <= n && u != v)
-            throw(ArgumentError("invalid edge ($(v), $(u)): vertices must be in 1:nvtxs without self edges"))
-        end
-        src[k] = v
-    end
-    # The values count how many times each edge is stored, since Metis also crashes if this
-    # differs between the two directions of an edge
-    if !issymmetric(sparse(src, adjncy[1:m], fill(idx_t(1), m), n, n))
-        throw(ArgumentError(
-            "Metis requires a graph with symmetric structure, but some edge i → j has no matching " *
-            "edge j → i. A directed graph must contain both directions of each edge. In a sparse " *
-            "matrix a stored zero counts as an edge, so one-sided stored zeros must be removed " *
-            "with `SparseArrays.dropzeros`."
-        ))
-    end
-    return nothing
-end
-
 """
     perm, iperm = Metis.permutation(G)
 
@@ -242,7 +242,6 @@ and its inverse `iperm` of `G`.
 permutation(G) = permutation(graph(G))
 
 function permutation(G::Graph)
-    check_graph(G)
     perm = Vector{idx_t}(undef, G.nvtxs)
     iperm = Vector{idx_t}(undef, G.nvtxs)
     @check METIS_NodeND(Ref{idx_t}(G.nvtxs), G.xadj, G.adjncy, G.vwgt, options, perm, iperm)
@@ -268,7 +267,6 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
     if nparts > 1 && nparts > G.nvtxs
         throw(ArgumentError("the number of parts ($(nparts)) must not be larger than the number of vertices ($(G.nvtxs))"))
     end
-    check_graph(G)
     part = Vector{idx_t}(undef, G.nvtxs)
     nparts == 1 && return fill!(part, 1) # https://github.com/JuliaSparse/Metis.jl/issues/49
     edgecut = fill(idx_t(0), 1)
@@ -290,7 +288,6 @@ Compute a vertex separator of the graph `G`.
 separator(G) = separator(graph(G))
 
 function separator(G::Graph)
-    check_graph(G)
     part = Vector{idx_t}(undef, G.nvtxs)
     sepsize = fill(idx_t(0), 1)
     # METIS_ComputeVertexSeparator segfaults with 1-based indexing

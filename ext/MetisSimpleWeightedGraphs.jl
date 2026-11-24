@@ -2,17 +2,21 @@
 
 module MetisSimpleWeightedGraphs
 
-using Graphs: ne, nv, outneighbors
+using Graphs: has_edge, is_directed, ne, nv, outneighbors
 using Metis: Metis
 using SimpleWeightedGraphs: AbstractSimpleWeightedGraph, get_weight
 
 """
-    graph(G::SimpleWeightedGraphs.AbstractSimpleGraph; weights=true) :: Metis.Graph
+    graph(G::SimpleWeightedGraphs.AbstractSimpleGraph; weights=true, check=true) :: Metis.Graph
 
 Construct the 1-based CSR representation of the weighted graph `G`.
+If `check=true` an `ArgumentError` is thrown if `G` is directed and has an edge without a
+matching edge in the other direction, or, if `weights=true`, with a different weight than the
+matching edge, since Metis requires edges in both directions with the same weight. With
+`check=false` this isn't checked.
 """
-function Metis.graph(G::AbstractSimpleWeightedGraph; weights::Bool=true)
-    return graph(G; weights=weights)
+function Metis.graph(G::AbstractSimpleWeightedGraph; weights::Bool=true, check::Bool=true)
+    return graph(G; weights, check)
 end
 
 # METIS_NodeND and METIS_ComputeVertexSeparator don't take edge weights, so don't

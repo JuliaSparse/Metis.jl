@@ -22,12 +22,12 @@ import LightGraphs, Graphs
 end
 
 @testset "Metis.graph(::SparseMatrixCSC) rejects non-square matrices" begin
-    # Compare the full exception: a non-square matrix already fails the Hermitian check.
-    for check_hermitian in (true, false)
+    # Compare the full exception: a non-square matrix would also fail the symmetry check.
+    for check in (true, false)
         tall = sparse([10], [5], [1], 10, 5)
-        @test_throws ArgumentError("matrix must be square, got size (10, 5)") Metis.graph(tall; check_hermitian)
+        @test_throws ArgumentError("matrix must be square, got size (10, 5)") Metis.graph(tall; check)
         wide = sparse([1], [9], [1], 3, 10)
-        @test_throws ArgumentError("matrix must be square, got size (3, 10)") Metis.graph(wide; check_hermitian)
+        @test_throws ArgumentError("matrix must be square, got size (3, 10)") Metis.graph(wide; check)
     end
 end
 
@@ -52,12 +52,11 @@ end
 @testset "Metis.graph(::SimpleWeightedDiGraph)" begin
     if isdefined(Base, :get_extension)
         import SimpleWeightedGraphs
-        # Issue #56: the weight must be that of the edge from j to i
-        g = Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1], [2], [1]))
-        @test g.xadj == [1, 2, 2]
-        @test g.adjncy == [2]
-        @test g.adjwgt == [1]
-        g = Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2], [2, 1], [3, 5]))
+        # Metis requires edges in both directions
+        @test_throws ArgumentError Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1], [2], [1]))
+        # Issue #56: the weight must be that of the edge from j to i. Metis requires equal
+        # weights, so this can only be seen with check=false.
+        g = Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2], [2, 1], [3, 5]); check=false)
         @test g.xadj == [1, 2, 3]
         @test g.adjncy == [2, 1]
         @test g.adjwgt == [3, 5]
@@ -75,9 +74,11 @@ end
     for G in Gs
         @test_throws MethodError Metis.graph(G; weight=true)
         @test_throws MethodError Metis.graph(G; check_hermitian=false)
-        g = Metis.graph(G; weights=false)
-        @test g.adjwgt == C_NULL
-        @test length(g.adjncy) == 2 * Graphs.ne(GG)
+        for check in (true, false)
+            g = Metis.graph(G; weights=false, check)
+            @test g.adjwgt == C_NULL
+            @test length(g.adjncy) == 2 * Graphs.ne(GG)
+        end
     end
 end
 
@@ -92,7 +93,7 @@ end
     # The message names the offending entry of the matrix
     A = sparse([2, 1], [1, 2], [-5, 3])
     err = try
-        Metis.graph(A; weights=true, check_hermitian=false)
+        Metis.graph(A; weights=true, check=false)
     catch e
         e
     end
@@ -145,28 +146,26 @@ end
 end
 
 @testset "Graph structure validation" begin
-    using LinearAlgebra: ishermitian, tril, triu
-    idx = Metis.LibMetis.idx_t
-    # The functions that pass a graph to Metis
-    consumers = (
-        G -> Metis.partition(G, 2), G -> Metis.partition(G, 2; alg=:RECURSIVE),
-        G -> Metis.partition(G, 1), Metis.permutation, Metis.separator,
-    )
-    # Inputs known to crash or hang Metis go to `check_graph` only, which never calls Metis.
-    # The inputs given to `consumers` are small ones that Metis gets through without the check.
-
-    # Directed graphs
+    using LinearAlgebra: ishermitian, triu
+    # Directed graphs need both directions of each edge
     onewaypath = Graphs.SimpleDiGraph(4)
     foreach(i -> Graphs.add_edge!(onewaypath, i, i + 1), 1:3)
-    @test Metis.graph(onewaypath).adjncy == [2, 3, 4] # Metis.graph is a raw converter
-    for f in consumers
-        @test_throws ArgumentError f(onewaypath)
+    @test_throws ArgumentError Metis.graph(onewaypath)
+    @test_throws ArgumentError Metis.partition(onewaypath, 2)
+    @test_throws ArgumentError Metis.permutation(onewaypath)
+    @test_throws ArgumentError Metis.separator(onewaypath)
+    err = try
+        Metis.graph(onewaypath)
+    catch e
+        e
     end
+    @test occursin("edge 1 → 2 without an edge 2 → 1", err.msg)
+    # check=false skips the check, and the graph is converted as is
+    @test Metis.graph(onewaypath; check=false).adjncy == [2, 3, 4]
     onewaypathlg = LightGraphs.SimpleDiGraph(4)
     foreach(i -> LightGraphs.add_edge!(onewaypathlg, i, i + 1), 1:3)
-    @test_throws ArgumentError Metis.partition(onewaypathlg, 2)
-    randomdigraph = Graphs.SimpleDiGraph(2000, 6000; rng=MersenneTwister(1))
-    @test_throws ArgumentError Metis.check_graph(Metis.graph(randomdigraph))
+    @test_throws ArgumentError Metis.graph(onewaypathlg)
+    @test Metis.graph(onewaypathlg; check=false).adjncy == [2, 3, 4]
     # A directed graph with both directions of each edge works
     T = Graphs.smallgraph(:tutte)
     D = Graphs.SimpleDiGraph(T)
@@ -175,105 +174,98 @@ end
     @test Metis.separator(D) == Metis.separator(T)
     if isdefined(Base, :get_extension)
         import SimpleWeightedGraphs
-        @test_throws ArgumentError Metis.partition(SimpleWeightedGraphs.SimpleWeightedDiGraph([1], [2], [1]), 2)
-        # Only the structure must be symmetric, not the weights
+        oneway = SimpleWeightedGraphs.SimpleWeightedDiGraph([1], [2], [1])
+        @test_throws ArgumentError Metis.graph(oneway)
+        @test Metis.graph(oneway; check=false).adjwgt == [1]
+        # permutation and separator ignore the weights, but not the structure
+        @test_throws ArgumentError Metis.permutation(oneway)
+        @test_throws ArgumentError Metis.separator(oneway)
+        # The weights must be equal in both directions
         W = SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2, 2, 3], [2, 1, 3, 2], [3, 5, 7, 9])
-        @test length(Metis.partition(W, 2)) == 3
+        @test_throws ArgumentError Metis.graph(W)
+        @test_throws ArgumentError Metis.partition(W, 2)
+        err = try
+            Metis.graph(W)
+        catch e
+            e
+        end
+        @test occursin("weight 3 for edge 1 → 2 and weight 5 for edge 2 → 1", err.msg)
+        @test Metis.graph(W; check=false).adjwgt == [3, 5, 7, 9]
+        # The weights aren't used, and aren't checked, by permutation and separator
+        @test isperm(Metis.permutation(W)[1])
+        @test length(Metis.separator(W)) == 3
+        # Equal weights in both directions work
+        E = SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2, 2, 3], [2, 1, 3, 2], [3, 3, 7, 7])
+        @test Metis.graph(E).adjwgt == [3, 3, 7, 7]
+        @test length(Metis.partition(E, 2)) == 3
     end
 
-    # One-sided stored zeros
+    # One-sided stored zeros pass ishermitian, which compares values, but not the pattern check
     onesided = SparseMatrixCSC(4, 4, [1, 2, 4, 5, 6], Int[2, 1, 3, 2, 1], [1, 1, 1, 1, 0])
     @test ishermitian(onesided)
-    @test Metis.graph(onesided).adjncy == [2, 1, 3, 2, 1] # Metis.graph is a raw converter
-    for f in consumers
-        @test_throws ArgumentError f(onesided)
+    @test_throws ArgumentError Metis.graph(onesided)
+    err = try
+        Metis.graph(onesided)
+    catch e
+        e
     end
-    dropped = dropzeros(onesided)
-    @test Metis.graph(dropped).adjncy == [2, 1, 3, 2]
-    @test length(Metis.partition(dropped, 2)) == 4
-    @test isperm(Metis.permutation(dropped)[1])
-    @test length(Metis.separator(dropped)) == 4
-    allzero = sprand(MersenneTwister(1), 2000, 2000, 0.003)
-    allzero.nzval .= 0
-    @test_throws ArgumentError Metis.check_graph(Metis.graph(allzero))
-    @test isperm(Metis.permutation(dropzeros(allzero))[1])
+    @test occursin("entry (1, 4) is stored and entry (4, 1) isn't", err.msg)
+    @test_throws ArgumentError Metis.partition(onesided, 2)
+    @test Metis.graph(dropzeros(onesided)).adjncy == [2, 1, 3, 2]
+    @test length(Metis.partition(dropzeros(onesided), 2)) == 4
+    # check=false skips the checks, and the matrix is converted as is
+    @test Metis.graph(onesided; check=false).adjncy == [2, 1, 3, 2, 1]
+    # check_hermitian is a deprecated alias of check
+    @test (@test_deprecated Metis.graph(onesided; check_hermitian=false)).adjncy == [2, 1, 3, 2, 1]
 
     # Stored zeros on both sides of the diagonal are edges
     A = Graphs.adjacency_matrix(Graphs.grid([20, 20]))
     Z = copy(A)
     Z.nzval .= 0
-    @test nnz(Z) == nnz(A)
     @test Metis.graph(Z).adjncy == Metis.graph(A).adjncy
     @test Metis.partition(Z, 2) == Metis.partition(A, 2)
     @test Metis.permutation(Z) == Metis.permutation(A)
     @test Metis.separator(Z) == Metis.separator(A)
 
-    # Triangular input with check_hermitian=false
-    P = Graphs.adjacency_matrix(Graphs.path_graph(4))
-    for tri in (triu(P), tril(P))
-        G = Metis.graph(tri; check_hermitian=false)
-        for f in consumers
-            @test_throws ArgumentError f(G)
-        end
-    end
-    @test_throws ArgumentError Metis.check_graph(Metis.graph(triu(A); check_hermitian=false))
-    @test_throws ArgumentError Metis.partition(Metis.graph(triu(A); check_hermitian=false), 2)
+    # Triangular matrices must be wrapped
+    @test_throws ArgumentError Metis.graph(triu(A))
     @test Metis.partition(Symmetric(triu(A)), 2) == Metis.partition(A, 2)
-    # check_hermitian=false still allows numerically nonsymmetric values
+    # Without weights only the pattern must be symmetric, not the values
     N = copy(A)
     N.nzval .= 1:nnz(N)
-    @test_throws ArgumentError Metis.graph(N)
-    @test Metis.partition(Metis.graph(N; check_hermitian=false), 2) == Metis.partition(A, 2)
-
-    # Malformed Metis.Graph: a path with 3 vertices
-    n = idx(3)
-    xadj = idx[1, 2, 4, 5]
-    adjncy = idx[2, 1, 3, 2]
-    @test Metis.check_graph(Metis.Graph(n, xadj, adjncy)) === nothing
-    for G in (
-        Metis.Graph(n, xadj .- idx(1), adjncy),                 # 0-based xadj
-        Metis.Graph(n, idx[1, 2, 4], adjncy),                   # xadj too short
-        Metis.Graph(n, idx[1, 2, 4, 5, 5], adjncy),             # xadj too long
-        Metis.Graph(n, idx[], adjncy),                          # empty xadj
-        Metis.Graph(n, idx[1, 4, 2, 5], adjncy),                # decreasing xadj
-        Metis.Graph(idx(-1), xadj, adjncy),                     # negative nvtxs
-        Metis.Graph(n, xadj, C_NULL),                           # adjncy not a vector
-        Metis.Graph(n, xadj, adjncy[1:3]),                      # adjncy too short
-        Metis.Graph(n, idx[1, 2, 4, typemax(idx)], adjncy),     # adjncy far too short
-        Metis.Graph(n, xadj, adjncy .- idx(1)),                 # 0-based adjncy
-        Metis.Graph(n, xadj, idx[2, 1, 4, 2]),                  # vertex out of range
-        Metis.Graph(n, xadj, idx[2, 2, 3, 2]),                  # self edge
-        Metis.Graph(n, xadj, adjncy, ones(idx, 2)),             # vwgt too short
-        Metis.Graph(n, xadj, adjncy, ones(idx, 4)),             # vwgt too long
-        Metis.Graph(n, xadj, adjncy, C_NULL, ones(idx, 3)),     # adjwgt too short
-        Metis.Graph(n, idx[1, 3, 4, 4], idx[2, 2, 1]),          # 1 → 2 stored twice, 2 → 1 once
-    )
-        @test_throws ArgumentError Metis.check_graph(G)
-    end
-    for f in consumers
-        @test_throws ArgumentError f(Metis.Graph(n, xadj, adjncy, ones(idx, 2)))
-    end
-    # Entries past xadj[end] are not used
-    @test Metis.check_graph(Metis.Graph(n, xadj, vcat(adjncy, idx(99)), C_NULL, ones(idx, 5))) === nothing
-    # Graphs without edges or vertices are valid
-    @test Metis.check_graph(Metis.Graph(n, ones(idx, 4), idx[])) === nothing
-    @test Metis.check_graph(Metis.Graph(idx(0), idx[1], idx[])) === nothing
-    # adjncy can be C_NULL for a graph without edges
-    edgeless = Metis.Graph(n, ones(idx, 4), C_NULL)
-    @test length(Metis.partition(edgeless, 2)) == 3
-    @test length(Metis.partition(edgeless, 2; alg=:RECURSIVE)) == 3
-    @test isperm(Metis.permutation(edgeless)[1])
-    @test length(Metis.separator(edgeless)) == 3
-
-    # The error explains the two common causes
+    @test Metis.graph(N).adjncy == Metis.graph(A).adjncy
+    @test Metis.partition(N, 2) == Metis.partition(A, 2)
+    @test Metis.permutation(N) == Metis.permutation(A)
+    @test Metis.separator(N) == Metis.separator(A)
+    # With weights the values must be symmetric too
+    @test_throws ArgumentError Metis.graph(N; weights=true)
+    W = sparse([2, 1], [1, 2], [3, 5])
     err = try
-        Metis.check_graph(Metis.graph(onewaypath))
+        Metis.graph(W; weights=true)
     catch e
         e
     end
-    @test err isa ArgumentError
-    @test occursin("directed graph", err.msg)
-    @test occursin("SparseArrays.dropzeros", err.msg)
+    @test occursin("entry (2, 1) is 3 and entry (1, 2) is 5", err.msg)
+    @test Metis.graph(W; weights=true, check=false).adjwgt == [3, 5]
+    @test Metis.graph(A + A'; weights=true).adjwgt == fill(2, nnz(A))
+
+    # The check itself
+    @test Metis.find_asymmetry(A, true) === nothing
+    @test Metis.find_asymmetry(triu(A), false)[3] === :pattern
+    @test Metis.find_asymmetry(N, false) === nothing
+    @test Metis.find_asymmetry(N, true)[3] === :value
+    @test Metis.find_asymmetry(spdiagm(0 => 1:3), true) === nothing # the diagonal is ignored
+    @test Metis.find_asymmetry(spzeros(0, 0), true) === nothing
+    rng = MersenneTwister(1)
+    for _ in 1:50
+        S = sprand(rng, 30, 30, 0.1)
+        P = SparseMatrixCSC(size(S)..., S.colptr, S.rowval, ones(nnz(S)))
+        @test (Metis.find_asymmetry(S, false) === nothing) == (P == permutedims(P))
+        @test Metis.find_asymmetry(S + S', true) === nothing
+        S2 = S + permutedims(P) # symmetric pattern, values usually not symmetric
+        @test Metis.find_asymmetry(S2, false) === nothing
+        @test (Metis.find_asymmetry(S2, true) === nothing) == (S2 == permutedims(S2))
+    end
 end
 
 @testset "Metis.permutation" begin
