@@ -45,15 +45,15 @@ use them, are:
 | `ptype`     | `METIS_OPTION_PTYPE`     | Only the mesh partitioning functions of the C API               |
 | `objtype`   | `METIS_OPTION_OBJTYPE`   | `partition`; must not be set for `permutation` and `separator`  |
 | `ctype`     | `METIS_OPTION_CTYPE`     | All                                                             |
-| `iptype`    | `METIS_OPTION_IPTYPE`    | `partition` with `alg = :RECURSIVE`, `permutation`, `separator` |
+| `iptype`    | `METIS_OPTION_IPTYPE`    | `partition` with `RECURSIVE`, `permutation`, `separator`        |
 | `rtype`     | `METIS_OPTION_RTYPE`     | `permutation`, `separator`                                      |
 | `dbglvl`    | `METIS_OPTION_DBGLVL`    | All                                                             |
 | `niter`     | `METIS_OPTION_NITER`     | All                                                             |
 | `ncuts`     | `METIS_OPTION_NCUTS`     | `partition`                                                     |
 | `seed`      | `METIS_OPTION_SEED`      | All                                                             |
 | `no2hop`    | `METIS_OPTION_NO2HOP`    | All                                                             |
-| `minconn`   | `METIS_OPTION_MINCONN`   | `partition` with `alg = :KWAY`                                  |
-| `contig`    | `METIS_OPTION_CONTIG`    | `partition` with `alg = :KWAY`                                  |
+| `minconn`   | `METIS_OPTION_MINCONN`   | `partition` with `KWAY`                                         |
+| `contig`    | `METIS_OPTION_CONTIG`    | `partition` with `KWAY`                                         |
 | `compress`  | `METIS_OPTION_COMPRESS`  | `permutation`, `separator`                                      |
 | `ccorder`   | `METIS_OPTION_CCORDER`   | `permutation`                                                   |
 | `pfactor`   | `METIS_OPTION_PFACTOR`   | `permutation`                                                   |
@@ -385,22 +385,49 @@ function permutation(G::Graph; options::Union{Options, Nothing} = nothing)
 end
 
 """
-    Metis.partition(G, n; alg = :KWAY, options = nothing)
+    Metis.Algorithm
 
-Partition the graph `G` in `n` parts.
-The partition algorithm is defined by the `alg` keyword:
- - :KWAY: multilevel k-way partitioning
- - :RECURSIVE: multilevel recursive bisection
+The partitioning algorithm for `Metis.partition`, passed with the `alg` keyword argument:
+ - `Metis.Algorithm.KWAY`: multilevel k-way partitioning (`METIS_PartGraphKway`)
+ - `Metis.Algorithm.RECURSIVE`: multilevel recursive bisection (`METIS_PartGraphRecursive`)
+"""
+baremodule Algorithm
+    using Base: @enum
+    @enum T KWAY RECURSIVE
+end
+
+# Convert the `alg` keyword argument of `partition`, which can also be a `Symbol` (deprecated)
+to_algorithm(alg::Algorithm.T) = alg
+function to_algorithm(alg)
+    if alg === :KWAY
+        enum = Algorithm.KWAY
+    elseif alg === :RECURSIVE
+        enum = Algorithm.RECURSIVE
+    else
+        throw(ArgumentError("unknown algorithm $(repr(alg))"))
+    end
+    Base.depwarn(
+        "passing `alg` as a `Symbol` is deprecated, use `alg = Metis.Algorithm.$(alg)` instead",
+        :to_algorithm,
+    )
+    return enum
+end
+
+"""
+    Metis.partition(G, n; alg = Metis.Algorithm.KWAY, options = nothing)
+
+Partition the graph `G` in `n` parts, with the algorithm given by `alg`, see
+`Metis.Algorithm`.
 
 An `ArgumentError` is thrown for any other `alg`, if `n` is less than 1, and if `n` is larger
 than the number of vertices.
 See `Metis.Options` for the `options` keyword argument.
 """
-partition(G, nparts; alg = :KWAY, options::Union{Options, Nothing} = nothing) =
+partition(G, nparts; alg = Algorithm.KWAY, options::Union{Options, Nothing} = nothing) =
     partition(graph(G), nparts; alg, options)
 
-function partition(G::Graph, nparts::Integer; alg = :KWAY, options::Union{Options, Nothing} = nothing)
-    alg === :RECURSIVE || alg === :KWAY || throw(ArgumentError("unknown algorithm $(repr(alg))"))
+function partition(G::Graph, nparts::Integer; alg = Algorithm.KWAY, options::Union{Options, Nothing} = nothing)
+    alg = to_algorithm(alg)
     nparts < 1 && throw(ArgumentError("the number of parts must be at least 1, got $(nparts)"))
     if nparts > 1 && nparts > G.nvtxs
         throw(ArgumentError("the number of parts ($(nparts)) must not be larger than the number of vertices ($(G.nvtxs))"))
@@ -411,7 +438,7 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY, options::Union{Option
     options === nothing && check_global_options()
     xadj, adjncy = zero_based_adjacency(G)
     @lock metis_lock begin
-        if alg === :RECURSIVE
+        if alg == Algorithm.RECURSIVE
             @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), xadj, adjncy, G.vwgt, C_NULL, G.adjwgt,
                                             Ref{idx_t}(nparts), C_NULL, C_NULL, metis_options(options), edgecut, part)
         else

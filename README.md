@@ -18,8 +18,10 @@ a small graph into two, three and four parts, and visualize the result:
 
 `Metis.partition` calls `METIS_PartGraphKway` or `METIS_PartGraphRecursive` from the Metis
 C API, depending on the optional keyword argument `alg`:
- - `alg = :KWAY`:  multilevel k-way partitioning (`METIS_PartGraphKway`).
- - `alg = :RECURSIVE`:  multilevel recursive bisection (`METIS_PartGraphRecursive`).
+ - `alg = Metis.Algorithm.KWAY` (default): multilevel k-way partitioning
+   (`METIS_PartGraphKway`).
+ - `alg = Metis.Algorithm.RECURSIVE`: multilevel recursive bisection
+   (`METIS_PartGraphRecursive`).
 
 ### Edge weights
 `Metis.partition` uses edge weights when the graph has them:

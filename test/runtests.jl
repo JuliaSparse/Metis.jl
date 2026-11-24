@@ -123,9 +123,9 @@ end
         @test gw.adjwgt == [1, 1, 1, 1]
         @test gw.xadj == g.xadj
         @test gw.adjncy == g.adjncy
-        for alg in (:RECURSIVE, :KWAY)
+        for alg in (Metis.Algorithm.RECURSIVE, Metis.Algorithm.KWAY)
             # Unit weights partition like no weights. Only the larger graph is checked for
-            # non-empty parts: :KWAY puts this path graph in one part, with or without weights.
+            # non-empty parts: KWAY puts this path graph in one part, with or without weights.
             partition = Metis.partition(gw, 2, alg = alg)
             @test all(in(1:2), partition)
             @test partition == Metis.partition(G, 2, alg = alg)
@@ -270,7 +270,7 @@ end
     S = Graphs.adjacency_matrix(T)
     SG = Metis.graph(S; weights=true)
     TL = LightGraphs.smallgraph(:tutte)
-    for G in (S, T, TL, SG), alg in (:RECURSIVE, :KWAY), nparts in (1, 3, 4)
+    for G in (S, T, TL, SG), alg in (Metis.Algorithm.RECURSIVE, Metis.Algorithm.KWAY), nparts in (1, 3, 4)
         partition = Metis.partition(G, nparts, alg = alg)
         @test extrema(partition) == (1, nparts)
         @test all(x -> findfirst(==(x), partition) !== nothing, 1:nparts)
@@ -283,7 +283,7 @@ end
         SimpleWeightedGraphs.add_edge!(G1, i, j, 1)
         SimpleWeightedGraphs.add_edge!(G2, i, j, i+j)
     end
-    for alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
+    for alg in (Metis.Algorithm.RECURSIVE, Metis.Algorithm.KWAY), nparts in (3, 4)
         unwpartition = Metis.partition(T, nparts, alg = alg)
         partition = Metis.partition(G1, nparts, alg = alg)
         @test partition == unwpartition
@@ -294,9 +294,26 @@ end
     end
 end
 
+@testset "Metis.Algorithm" begin
+    S = Graphs.adjacency_matrix(Graphs.grid([30, 30]))
+    # KWAY is the default, and the algorithms give different partitions
+    @test Metis.partition(S, 4) == Metis.partition(S, 4; alg = Metis.Algorithm.KWAY)
+    @test Metis.partition(S, 4; alg = Metis.Algorithm.RECURSIVE) != Metis.partition(S, 4)
+    # Symbols are deprecated, but give the same result
+    @test (@test_deprecated Metis.partition(S, 4; alg = :KWAY)) == Metis.partition(S, 4)
+    @test (@test_deprecated Metis.partition(S, 4; alg = :RECURSIVE)) ==
+        Metis.partition(S, 4; alg = Metis.Algorithm.RECURSIVE)
+    @test (@test_deprecated Metis.to_algorithm(:RECURSIVE)) === Metis.Algorithm.RECURSIVE
+    @test (@test_logs Metis.to_algorithm(Metis.Algorithm.RECURSIVE)) === Metis.Algorithm.RECURSIVE
+    # Anything else is an error, also with one part, where Metis isn't called
+    for alg in (:BOGUS, "KWAY", 1), nparts in (1, 2)
+        @test_throws ArgumentError Metis.partition(S, nparts; alg)
+    end
+end
+
 @testset "Metis.partition argument validation" begin
     S = Graphs.adjacency_matrix(Graphs.cycle_graph(8))
-    for alg in (:RECURSIVE, :KWAY), nparts in (0, -1)
+    for alg in (Metis.Algorithm.RECURSIVE, Metis.Algorithm.KWAY), nparts in (0, -1)
         @test_throws ArgumentError Metis.partition(S, nparts; alg=alg)
     end
     for nparts in (1, 2)
@@ -304,7 +321,7 @@ end
     end
     # More parts than vertices is an error, as many parts as vertices is fine
     C4 = Graphs.adjacency_matrix(Graphs.cycle_graph(4))
-    for alg in (:RECURSIVE, :KWAY)
+    for alg in (Metis.Algorithm.RECURSIVE, Metis.Algorithm.KWAY)
         @test_throws ArgumentError Metis.partition(C4, 5; alg=alg)
         part = Metis.partition(C4, 4; alg=alg)
         @test length(part) == 4
@@ -312,7 +329,7 @@ end
     end
     # A graph without vertices can only be partitioned into one part
     E = spzeros(Int, 0, 0)
-    for alg in (:RECURSIVE, :KWAY)
+    for alg in (Metis.Algorithm.RECURSIVE, Metis.Algorithm.KWAY)
         part = Metis.partition(E, 1; alg=alg)
         @test part isa Vector
         @test isempty(part)
@@ -325,7 +342,7 @@ end
     # reseeds the random number generator, so every task gets the sequential result.
     g = Metis.graph(Graphs.adjacency_matrix(Graphs.grid([100, 100])))
     xadj, adjncy = copy(g.xadj), copy(g.adjncy)
-    for f in (g -> Metis.partition(g, 8; alg = :KWAY), g -> Metis.partition(g, 8; alg = :RECURSIVE),
+    for f in (g -> Metis.partition(g, 8; alg = Metis.Algorithm.KWAY), g -> Metis.partition(g, 8; alg = Metis.Algorithm.RECURSIVE),
               Metis.permutation, Metis.separator)
         expected = f(g)
         tasks = [Threads.@spawn(f(g)) for _ in 1:(4 * Threads.nthreads())]
@@ -363,7 +380,7 @@ end
     # adjncy can be C_NULL for a graph without edges
     edgeless = Metis.Graph(3, ones(Metis.idx_t, 4), C_NULL)
     @test all(in(1:2), Metis.partition(edgeless, 2))
-    @test all(in(1:2), Metis.partition(edgeless, 2; alg = :RECURSIVE))
+    @test all(in(1:2), Metis.partition(edgeless, 2; alg = Metis.Algorithm.RECURSIVE))
     @test isperm(Metis.permutation(edgeless)[1])
     @test all(in(1:3), Metis.separator(edgeless))
 end
@@ -372,8 +389,8 @@ end
     S = Graphs.adjacency_matrix(Graphs.grid([30, 30]))
     # Default options give the default results
     @test Metis.partition(S, 4; options = Metis.Options()) == Metis.partition(S, 4)
-    @test Metis.partition(S, 4; alg = :RECURSIVE, options = Metis.Options()) ==
-        Metis.partition(S, 4; alg = :RECURSIVE)
+    @test Metis.partition(S, 4; alg = Metis.Algorithm.RECURSIVE, options = Metis.Options()) ==
+        Metis.partition(S, 4; alg = Metis.Algorithm.RECURSIVE)
     @test Metis.permutation(S; options = Metis.Options()) == Metis.permutation(S)
     @test Metis.separator(S; options = Metis.Options()) == Metis.separator(S)
     # Setting an option is the same as setting it in the global options array, which it overrides
@@ -382,7 +399,7 @@ end
     opts = Metis.Options(seed = 7, ufactor = 50)
     defaults = (Metis.partition(S, 4), Metis.permutation(S))
     withopts = (
-        Metis.partition(S, 4; options = opts), Metis.partition(S, 4; alg = :RECURSIVE, options = opts),
+        Metis.partition(S, 4; options = opts), Metis.partition(S, 4; alg = Metis.Algorithm.RECURSIVE, options = opts),
         Metis.permutation(S; options = opts), Metis.separator(S; options = opts),
     )
     # (setting options in the global array is deprecated, but still works)
@@ -391,7 +408,7 @@ end
     try
         @test withopts == (
             (@test_deprecated Metis.partition(S, 4)),
-            (@test_deprecated Metis.partition(S, 4; alg = :RECURSIVE)),
+            (@test_deprecated Metis.partition(S, 4; alg = Metis.Algorithm.RECURSIVE)),
             (@test_deprecated Metis.permutation(S)),
             (@test_deprecated Metis.separator(S)),
         )
