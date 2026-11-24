@@ -12,8 +12,25 @@ using .LibMetis
 using .LibMetis: idx_t, @check
 
 # Global options array -- should probably do something better...
+# Other packages pass this to the C API with 1-based arrays, and change other options in it
+# before calling `partition` etc., so it keeps 1-based numbering. `metis_options` makes the
+# copy that the Julia interface passes to Metis.
 const options = fill(Cint(-1), METIS_NOPTIONS)
 options[Int(METIS_OPTION_NUMBERING)+1] = 1
+
+# Metis has global state: every call reseeds the C library's random number generator, and
+# most calls install and then restore process-wide signal handlers. Calls running at the
+# same time can therefore give non-reproducible results or leave the wrong signal handlers
+# installed, so they are serialized with this lock.
+const metis_lock = ReentrantLock()
+
+# Return a copy of the global options with 0-based numbering, to use with the arrays from
+# `zero_based_adjacency`. Call it while holding `metis_lock`.
+function metis_options()
+    opts = copy(options)
+    opts[Int(METIS_OPTION_NUMBERING)+1] = 0
+    return opts
+end
 
 # Julia interface
 """
@@ -233,6 +250,17 @@ function graph(H::HermOrSymCSC; weights::Bool=false)
     return Graph(idx_t(N), xadj, adjncy, vwgt, adjwgt)
 end
 
+# Return 0-based copies of the adjacency arrays of `G` to pass to Metis. With 1-based
+# numbering Metis converts the caller's arrays to 0-based and back in place, so they would be
+# invalid for anyone else reading them during the call. METIS_ComputeVertexSeparator also
+# ignores the numbering option and always expects 0-based arrays. `adjncy` can be `C_NULL`
+# for a graph without edges.
+function zero_based_adjacency(G::Graph)
+    xadj = G.xadj .- idx_t(1)
+    adjncy = G.adjncy isa Vector ? G.adjncy .- idx_t(1) : G.adjncy
+    return xadj, adjncy
+end
+
 """
     perm, iperm = Metis.permutation(G)
 
@@ -244,7 +272,12 @@ permutation(G) = permutation(graph(G))
 function permutation(G::Graph)
     perm = Vector{idx_t}(undef, G.nvtxs)
     iperm = Vector{idx_t}(undef, G.nvtxs)
-    @check METIS_NodeND(Ref{idx_t}(G.nvtxs), G.xadj, G.adjncy, G.vwgt, options, perm, iperm)
+    xadj, adjncy = zero_based_adjacency(G)
+    lock(metis_lock) do
+        @check METIS_NodeND(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, metis_options(), perm, iperm)
+    end
+    perm .+= idx_t(1)
+    iperm .+= idx_t(1)
     return perm, iperm
 end
 
@@ -270,13 +303,17 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
     part = Vector{idx_t}(undef, G.nvtxs)
     nparts == 1 && return fill!(part, 1) # https://github.com/JuliaSparse/Metis.jl/issues/49
     edgecut = fill(idx_t(0), 1)
-    if alg === :RECURSIVE
-        @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, G.adjwgt,
-                                        Ref{idx_t}(nparts), C_NULL, C_NULL, options, edgecut, part)
-    elseif alg === :KWAY
-        @check METIS_PartGraphKway(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), G.xadj, G.adjncy, G.vwgt, C_NULL, G.adjwgt,
-                                   Ref{idx_t}(nparts), C_NULL, C_NULL, options, edgecut, part)
+    xadj, adjncy = zero_based_adjacency(G)
+    lock(metis_lock) do
+        if alg === :RECURSIVE
+            @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), xadj, adjncy, G.vwgt, C_NULL, G.adjwgt,
+                                            Ref{idx_t}(nparts), C_NULL, C_NULL, metis_options(), edgecut, part)
+        else
+            @check METIS_PartGraphKway(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), xadj, adjncy, G.vwgt, C_NULL, G.adjwgt,
+                                       Ref{idx_t}(nparts), C_NULL, C_NULL, metis_options(), edgecut, part)
+        end
     end
+    part .+= idx_t(1)
     return part
 end
 
@@ -290,11 +327,11 @@ separator(G) = separator(graph(G))
 function separator(G::Graph)
     part = Vector{idx_t}(undef, G.nvtxs)
     sepsize = fill(idx_t(0), 1)
-    # METIS_ComputeVertexSeparator segfaults with 1-based indexing
-    xadj = G.xadj .- idx_t(1)
-    adjncy = G.adjncy .- idx_t(1)
-    @check METIS_ComputeVertexSeparator(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, options, sepsize, part)
-    part .+= 1
+    xadj, adjncy = zero_based_adjacency(G)
+    lock(metis_lock) do
+        @check METIS_ComputeVertexSeparator(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, metis_options(), sepsize, part)
+    end
+    part .+= idx_t(1)
     return part
 end
 

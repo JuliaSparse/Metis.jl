@@ -335,6 +335,54 @@ end
     end
 end
 
+@testset "Calling Metis from several tasks" begin
+    # Tasks on different threads share one Graph. Metis calls are serialized and each call
+    # reseeds the random number generator, so every task gets the sequential result.
+    g = Metis.graph(Graphs.adjacency_matrix(Graphs.grid([100, 100])))
+    xadj, adjncy = copy(g.xadj), copy(g.adjncy)
+    for f in (g -> Metis.partition(g, 8; alg = :KWAY), g -> Metis.partition(g, 8; alg = :RECURSIVE),
+              Metis.permutation, Metis.separator)
+        expected = f(g)
+        tasks = [Threads.@spawn(f(g)) for _ in 1:(4 * Threads.nthreads())]
+        @test all(==(expected), fetch.(tasks))
+    end
+    # Metis gets copies of the adjacency arrays, so the Graph is never modified
+    @test g.xadj == xadj
+    @test g.adjncy == adjncy
+    # The global options keep 1-based numbering for direct calls to the C API, and the Julia
+    # interface overrides it, even if a user sets it explicitly
+    numbering = Int(Metis.METIS_OPTION_NUMBERING) + 1
+    @test Metis.options[numbering] == 1
+    part = Metis.partition(g, 8)
+    Metis.options[numbering] = 0
+    try
+        @test Metis.partition(g, 8) == part
+    finally
+        Metis.options[numbering] = 1
+    end
+    @test Metis.partition(g, 8) == part
+    gpart = Vector{Metis.idx_t}(undef, g.nvtxs)
+    @test Metis.METIS_PartGraphKway(Ref{Metis.idx_t}(g.nvtxs), Ref{Metis.idx_t}(1), g.xadj, g.adjncy, C_NULL, C_NULL,
+                                    C_NULL, Ref{Metis.idx_t}(8), C_NULL, C_NULL, Metis.options,
+                                    Ref{Metis.idx_t}(0), gpart) == Metis.METIS_OK
+    @test gpart == part
+    # Other options are respected
+    seed = Int(Metis.METIS_OPTION_SEED) + 1
+    Metis.options[seed] = 1234
+    try
+        @test isperm(Metis.permutation(g)[1])
+    finally
+        Metis.options[seed] = -1
+    end
+    @test Metis.options == vcat(fill(Cint(-1), numbering - 1), Cint(1), fill(Cint(-1), length(Metis.options) - numbering))
+    # adjncy can be C_NULL for a graph without edges
+    edgeless = Metis.Graph(3, ones(Metis.idx_t, 4), C_NULL)
+    @test all(in(1:2), Metis.partition(edgeless, 2))
+    @test all(in(1:2), Metis.partition(edgeless, 2; alg = :RECURSIVE))
+    @test isperm(Metis.permutation(edgeless)[1])
+    @test all(in(1:3), Metis.separator(edgeless))
+end
+
 @testset "Metis.separator" begin
     T = Graphs.smallgraph(:tutte)
     S = Graphs.adjacency_matrix(T)
