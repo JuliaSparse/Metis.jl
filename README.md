@@ -53,6 +53,15 @@ results in a sparser factorization:
 |:----------------------------- |:--------------------------------------- |
 | `chol(S)` (16% stored values) | `chol(S[perm,perm])` (6% stored values) |
 
+## Calling from several threads
+The Metis C library has global state, so `Metis.partition`, `Metis.permutation` and
+`Metis.separator` hold a lock while calling it. They can be called from several threads,
+also on the same `Metis.Graph`, but the Metis calls run one at a time. The input graph is
+never modified, and the results are the same as for sequential calls.
+
+When calling the C API directly, don't make concurrent calls, and note that with 1-based
+numbering Metis temporarily converts the input arrays to 0-based in place during a call.
+
 ## Direct access to the Metis C API
 For more fine tuned usage of Metis consider calling the C API directly.
 The following functions are currently exposed:
