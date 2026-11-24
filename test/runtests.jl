@@ -3,7 +3,7 @@ using Random
 using Test
 using SparseArrays
 using LinearAlgebra: Symmetric, Hermitian
-import LightGraphs, Graphs
+import LightGraphs, Graphs, SimpleWeightedGraphs
 
 @testset "Metis.graph(::SparseMatrixCSC)" begin
     rng = MersenneTwister(0)
@@ -50,27 +50,21 @@ end
 end
 
 @testset "Metis.graph(::SimpleWeightedDiGraph)" begin
-    if isdefined(Base, :get_extension)
-        import SimpleWeightedGraphs
-        # Metis requires edges in both directions
-        @test_throws ArgumentError Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1], [2], [1]))
-        # Issue #56: the weight must be that of the edge from j to i. Metis requires equal
-        # weights, so this can only be seen with check=false.
-        g = Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2], [2, 1], [3, 5]); check=false)
-        @test g.xadj == [1, 2, 3]
-        @test g.adjncy == [2, 1]
-        @test g.adjwgt == [3, 5]
-    end
+    # Metis requires edges in both directions
+    @test_throws ArgumentError Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1], [2], [1]))
+    # Issue #56: the weight must be that of the edge from j to i. Metis requires equal
+    # weights, so this can only be seen with check=false.
+    g = Metis.graph(SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2], [2, 1], [3, 5]); check=false)
+    @test g.xadj == [1, 2, 3]
+    @test g.adjncy == [2, 1]
+    @test g.adjwgt == [3, 5]
 end
 
 @testset "Metis.graph rejects unknown keywords for graph types" begin
     GG = Graphs.smallgraph(:house)
     LG = LightGraphs.smallgraph(:house)
     Gs = Any[GG, LG]
-    if isdefined(Base, :get_extension)
-        import SimpleWeightedGraphs
-        push!(Gs, SimpleWeightedGraphs.SimpleWeightedGraph(GG))
-    end
+    push!(Gs, SimpleWeightedGraphs.SimpleWeightedGraph(GG))
     for G in Gs
         @test_throws MethodError Metis.graph(G; weight=true)
         @test_throws MethodError Metis.graph(G; check_hermitian=false)
@@ -109,14 +103,11 @@ end
     @test g.adjncy == [2, 1]
     @test g.adjwgt == [3, 3]
     # The graph extensions use the same validation
-    if isdefined(Base, :get_extension)
-        import SimpleWeightedGraphs
-        for w in (-5, 0.5)
-            G = SimpleWeightedGraphs.SimpleWeightedGraph([1], [2], [w])
-            @test_throws ArgumentError Metis.graph(G)
-        end
-        @test Metis.graph(SimpleWeightedGraphs.SimpleWeightedGraph([1], [2], [2.0])).adjwgt == [2, 2]
+    for w in (-5, 0.5)
+        G = SimpleWeightedGraphs.SimpleWeightedGraph([1], [2], [w])
+        @test_throws ArgumentError Metis.graph(G)
     end
+    @test Metis.graph(SimpleWeightedGraphs.SimpleWeightedGraph([1], [2], [2.0])).adjwgt == [2, 2]
 end
 
 @testset "Metis.graph(::AbstractSimpleGraph; weights=true)" begin
@@ -172,33 +163,30 @@ end
     @test Metis.partition(D, 3) == Metis.partition(T, 3)
     @test Metis.permutation(D) == Metis.permutation(T)
     @test Metis.separator(D) == Metis.separator(T)
-    if isdefined(Base, :get_extension)
-        import SimpleWeightedGraphs
-        oneway = SimpleWeightedGraphs.SimpleWeightedDiGraph([1], [2], [1])
-        @test_throws ArgumentError Metis.graph(oneway)
-        @test Metis.graph(oneway; check=false).adjwgt == [1]
-        # permutation and separator ignore the weights, but not the structure
-        @test_throws ArgumentError Metis.permutation(oneway)
-        @test_throws ArgumentError Metis.separator(oneway)
-        # The weights must be equal in both directions
-        W = SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2, 2, 3], [2, 1, 3, 2], [3, 5, 7, 9])
-        @test_throws ArgumentError Metis.graph(W)
-        @test_throws ArgumentError Metis.partition(W, 2)
-        err = try
-            Metis.graph(W)
-        catch e
-            e
-        end
-        @test occursin("weight 3 for edge 1 → 2 and weight 5 for edge 2 → 1", err.msg)
-        @test Metis.graph(W; check=false).adjwgt == [3, 5, 7, 9]
-        # The weights aren't used, and aren't checked, by permutation and separator
-        @test isperm(Metis.permutation(W)[1])
-        @test length(Metis.separator(W)) == 3
-        # Equal weights in both directions work
-        E = SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2, 2, 3], [2, 1, 3, 2], [3, 3, 7, 7])
-        @test Metis.graph(E).adjwgt == [3, 3, 7, 7]
-        @test length(Metis.partition(E, 2)) == 3
+    oneway = SimpleWeightedGraphs.SimpleWeightedDiGraph([1], [2], [1])
+    @test_throws ArgumentError Metis.graph(oneway)
+    @test Metis.graph(oneway; check=false).adjwgt == [1]
+    # permutation and separator ignore the weights, but not the structure
+    @test_throws ArgumentError Metis.permutation(oneway)
+    @test_throws ArgumentError Metis.separator(oneway)
+    # The weights must be equal in both directions
+    W = SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2, 2, 3], [2, 1, 3, 2], [3, 5, 7, 9])
+    @test_throws ArgumentError Metis.graph(W)
+    @test_throws ArgumentError Metis.partition(W, 2)
+    err = try
+        Metis.graph(W)
+    catch e
+        e
     end
+    @test occursin("weight 3 for edge 1 → 2 and weight 5 for edge 2 → 1", err.msg)
+    @test Metis.graph(W; check=false).adjwgt == [3, 5, 7, 9]
+    # The weights aren't used, and aren't checked, by permutation and separator
+    @test isperm(Metis.permutation(W)[1])
+    @test length(Metis.separator(W)) == 3
+    # Equal weights in both directions work
+    E = SimpleWeightedGraphs.SimpleWeightedDiGraph([1, 2, 2, 3], [2, 1, 3, 2], [3, 3, 7, 7])
+    @test Metis.graph(E).adjwgt == [3, 3, 7, 7]
+    @test length(Metis.partition(E, 2)) == 3
 
     # One-sided stored zeros pass ishermitian, which compares values, but not the pattern check
     onesided = SparseMatrixCSC(4, 4, [1, 2, 4, 5, 6], Int[2, 1, 3, 2, 1], [1, 1, 1, 1, 0])
@@ -288,24 +276,21 @@ end
         @test all(x -> findfirst(==(x), partition) !== nothing, 1:nparts)
     end
     # With weights
-    if isdefined(Base, :get_extension)
-        import SimpleWeightedGraphs
-        G1 = SimpleWeightedGraphs.SimpleWeightedGraph(Graphs.nv(T))
-        G2 = SimpleWeightedGraphs.SimpleWeightedGraph(Graphs.nv(T))
-        for edge in Graphs.edges(T)
-            i, j = Tuple(edge)
-            SimpleWeightedGraphs.add_edge!(G1, i, j, 1)
-            SimpleWeightedGraphs.add_edge!(G2, i, j, i+j)
-        end
-        for alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
-            unwpartition = Metis.partition(T, nparts, alg = alg)
-            partition = Metis.partition(G1, nparts, alg = alg)
-            @test partition == unwpartition
-            partition = Metis.partition(G2, nparts, alg = alg)
-            @test partition != unwpartition
-            @test extrema(partition) == (1, nparts)
-            @test all(x -> findfirst(==(x), partition) !== nothing, 1:nparts)
-        end
+    G1 = SimpleWeightedGraphs.SimpleWeightedGraph(Graphs.nv(T))
+    G2 = SimpleWeightedGraphs.SimpleWeightedGraph(Graphs.nv(T))
+    for edge in Graphs.edges(T)
+        i, j = Tuple(edge)
+        SimpleWeightedGraphs.add_edge!(G1, i, j, 1)
+        SimpleWeightedGraphs.add_edge!(G2, i, j, i+j)
+    end
+    for alg in (:RECURSIVE, :KWAY), nparts in (3, 4)
+        unwpartition = Metis.partition(T, nparts, alg = alg)
+        partition = Metis.partition(G1, nparts, alg = alg)
+        @test partition == unwpartition
+        partition = Metis.partition(G2, nparts, alg = alg)
+        @test partition != unwpartition
+        @test extrema(partition) == (1, nparts)
+        @test all(x -> findfirst(==(x), partition) !== nothing, 1:nparts)
     end
 end
 
@@ -398,26 +383,23 @@ end
 end
 
 @testset "Edge weights of SimpleWeightedGraphs that are invalid for Metis" begin
-    if isdefined(Base, :get_extension)
-        import SimpleWeightedGraphs
-        g = SimpleWeightedGraphs.SimpleWeightedGraph([1, 2, 3], [2, 3, 4], [0.5, 1.5, 2.5])
-        perm, iperm = Metis.permutation(g)
-        @test isperm(perm)
-        @test isperm(iperm)
-        @test length(perm) == 4
-        parts = Metis.separator(g)
-        @test length(parts) == 4
-        @test all(in(1:3), parts)
-        # Edge weights are ignored, so the results are those of the unweighted graph
-        T = Graphs.smallgraph(:tutte)
-        G = SimpleWeightedGraphs.SimpleWeightedGraph(Graphs.nv(T))
-        for edge in Graphs.edges(T)
-            SimpleWeightedGraphs.add_edge!(G, Graphs.src(edge), Graphs.dst(edge), 0.5)
-        end
-        @test Metis.permutation(G) == Metis.permutation(T)
-        @test Metis.separator(G) == Metis.separator(T)
-        # METIS_PartGraph* do use edge weights, so they must still be rejected
-        @test_throws ArgumentError Metis.partition(g, 2)
-        @test_throws ArgumentError Metis.partition(G, 3)
+    g = SimpleWeightedGraphs.SimpleWeightedGraph([1, 2, 3], [2, 3, 4], [0.5, 1.5, 2.5])
+    perm, iperm = Metis.permutation(g)
+    @test isperm(perm)
+    @test isperm(iperm)
+    @test length(perm) == 4
+    parts = Metis.separator(g)
+    @test length(parts) == 4
+    @test all(in(1:3), parts)
+    # Edge weights are ignored, so the results are those of the unweighted graph
+    T = Graphs.smallgraph(:tutte)
+    G = SimpleWeightedGraphs.SimpleWeightedGraph(Graphs.nv(T))
+    for edge in Graphs.edges(T)
+        SimpleWeightedGraphs.add_edge!(G, Graphs.src(edge), Graphs.dst(edge), 0.5)
     end
+    @test Metis.permutation(G) == Metis.permutation(T)
+    @test Metis.separator(G) == Metis.separator(T)
+    # METIS_PartGraph* do use edge weights, so they must still be rejected
+    @test_throws ArgumentError Metis.partition(g, 2)
+    @test_throws ArgumentError Metis.partition(G, 3)
 end

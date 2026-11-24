@@ -157,22 +157,7 @@ const HermOrSymCSC{Tv, Ti} = Union{
     Hermitian{Tv, SparseMatrixCSC{Tv, Ti}}, Symmetric{Tv, SparseMatrixCSC{Tv, Ti}},
 }
 
-if VERSION < v"1.10"
-    # From https://github.com/JuliaSparse/SparseArrays.jl/blob/313a04f4a78bbc534f89b6b4d9c598453e2af17c/src/linalg.jl#L1106-L1117
-    # MIT license: https://github.com/JuliaSparse/SparseArrays.jl/blob/main/LICENSE.md
-    function nzrangeup(A, i, excl=false)
-        r = nzrange(A, i); r1 = r.start; r2 = r.stop
-        rv = rowvals(A)
-        @inbounds r2 < r1 || rv[r2] <= i - excl ? r : r1:(searchsortedlast(view(rv, r1:r2), i - excl) + r1-1)
-    end
-    function nzrangelo(A, i, excl=false)
-        r = nzrange(A, i); r1 = r.start; r2 = r.stop
-        rv = rowvals(A)
-        @inbounds r2 < r1 || rv[r1] >= i + excl ? r : (searchsortedfirst(view(rv, r1:r2), i + excl) + r1-1):r2
-    end
-else
-    using SparseArrays: nzrangeup, nzrangelo
-end
+using SparseArrays: nzrangeup, nzrangelo
 
 """
     Metis.graph(G::Union{Hermitian, Symmetric}; weights::Bool=false)
@@ -273,7 +258,7 @@ function permutation(G::Graph)
     perm = Vector{idx_t}(undef, G.nvtxs)
     iperm = Vector{idx_t}(undef, G.nvtxs)
     xadj, adjncy = zero_based_adjacency(G)
-    lock(metis_lock) do
+    @lock metis_lock begin
         @check METIS_NodeND(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, metis_options(), perm, iperm)
     end
     perm .+= idx_t(1)
@@ -304,7 +289,7 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
     nparts == 1 && return fill!(part, 1) # https://github.com/JuliaSparse/Metis.jl/issues/49
     edgecut = fill(idx_t(0), 1)
     xadj, adjncy = zero_based_adjacency(G)
-    lock(metis_lock) do
+    @lock metis_lock begin
         if alg === :RECURSIVE
             @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), xadj, adjncy, G.vwgt, C_NULL, G.adjwgt,
                                             Ref{idx_t}(nparts), C_NULL, C_NULL, metis_options(), edgecut, part)
@@ -332,17 +317,12 @@ function separator(G::Graph)
     part = Vector{idx_t}(undef, G.nvtxs)
     sepsize = fill(idx_t(0), 1)
     xadj, adjncy = zero_based_adjacency(G)
-    lock(metis_lock) do
+    @lock metis_lock begin
         @check METIS_ComputeVertexSeparator(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, metis_options(), sepsize, part)
     end
     part .+= idx_t(1)
     return part
 end
 
-# Compatibility for Julias that doesn't support package extensions
-if !(isdefined(Base, :get_extension))
-    include("../ext/MetisGraphs.jl")
-    include("../ext/MetisLightGraphs.jl")
-end
 
 end # module

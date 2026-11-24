@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Changed
+ - Julia 1.10 is now required. Graphs.jl and LightGraphs.jl are no longer dependencies of
+   Metis.jl: support for them is only loaded, as package extensions, when they are loaded.
+
 ## [v1.6.0] - 2026-11-24
 This release validates input that Metis can't handle, and throws an `ArgumentError` for it
 instead of passing it to Metis, where it could crash, hang or give invalid results. Some
