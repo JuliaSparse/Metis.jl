@@ -11,10 +11,10 @@ include("LibMetis.jl")
 using .LibMetis
 using .LibMetis: idx_t, @check
 
-# Global options array -- should probably do something better...
-# Other packages pass this to the C API with 1-based arrays, and change other options in it
-# before calling `partition` etc., so it keeps 1-based numbering. `metis_options` makes the
-# copy that the Julia interface passes to Metis.
+# Global options array (deprecated). It is only kept since existing code refers to it: other
+# packages pass it to the C API with 1-based arrays, so it keeps 1-based numbering, and change
+# options in it before calling `partition` etc., so the Julia interface still uses it when no
+# `Options` is passed (see `metis_options`). Remove it in the next breaking release.
 const options = fill(Cint(-1), METIS_NOPTIONS)
 options[Int(METIS_OPTION_NUMBERING)+1] = 1
 
@@ -24,11 +24,127 @@ options[Int(METIS_OPTION_NUMBERING)+1] = 1
 # installed, so they are serialized with this lock.
 const metis_lock = ReentrantLock()
 
-# Return a copy of the global options with 0-based numbering, to use with the arrays from
-# `zero_based_adjacency`. Call it while holding `metis_lock`.
-function metis_options()
-    opts = copy(options)
-    opts[Int(METIS_OPTION_NUMBERING)+1] = 0
+"""
+    Metis.Options(; kwargs...)
+
+Options for Metis, passed to `Metis.partition`, `Metis.permutation` and `Metis.separator` with
+the `options` keyword argument, e.g.
+
+```julia
+Metis.partition(G, 4; options = Metis.Options(seed = 42, ufactor = 30))
+```
+
+Each keyword argument sets one Metis option, see section 5.4 "Options array" in the Metis
+manual for their meaning and values. Values can be integers, `Bool`s or the corresponding
+constants, e.g. `objtype = Metis.METIS_OBJTYPE_VOL`. Options that aren't given use the Metis
+default. Metis throws a `MetisError` for an invalid value. The options, and the functions that
+use them, are:
+
+| Keyword     | Metis option             | Used by                                                         |
+|:----------- |:------------------------ |:--------------------------------------------------------------- |
+| `ptype`     | `METIS_OPTION_PTYPE`     | Only the mesh partitioning functions of the C API               |
+| `objtype`   | `METIS_OPTION_OBJTYPE`   | `partition`; must not be set for `permutation` and `separator`  |
+| `ctype`     | `METIS_OPTION_CTYPE`     | All                                                             |
+| `iptype`    | `METIS_OPTION_IPTYPE`    | `partition` with `alg = :RECURSIVE`, `permutation`, `separator` |
+| `rtype`     | `METIS_OPTION_RTYPE`     | `permutation`, `separator`                                      |
+| `dbglvl`    | `METIS_OPTION_DBGLVL`    | All                                                             |
+| `niter`     | `METIS_OPTION_NITER`     | All                                                             |
+| `ncuts`     | `METIS_OPTION_NCUTS`     | `partition`                                                     |
+| `seed`      | `METIS_OPTION_SEED`      | All                                                             |
+| `no2hop`    | `METIS_OPTION_NO2HOP`    | All                                                             |
+| `minconn`   | `METIS_OPTION_MINCONN`   | `partition` with `alg = :KWAY`                                  |
+| `contig`    | `METIS_OPTION_CONTIG`    | `partition` with `alg = :KWAY`                                  |
+| `compress`  | `METIS_OPTION_COMPRESS`  | `permutation`, `separator`                                      |
+| `ccorder`   | `METIS_OPTION_CCORDER`   | `permutation`                                                   |
+| `pfactor`   | `METIS_OPTION_PFACTOR`   | `permutation`                                                   |
+| `nseps`     | `METIS_OPTION_NSEPS`     | `permutation`, `separator`                                      |
+| `ufactor`   | `METIS_OPTION_UFACTOR`   | All                                                             |
+| `numbering` | `METIS_OPTION_NUMBERING` | Only the C API, see below                                       |
+
+An `Options` stores the options array in the layout Metis uses, and can be passed directly to
+the C API functions, e.g. `Metis.METIS_NodeND`, with `numbering = 1` for 1-based arrays.
+`Metis.partition`, `Metis.permutation` and `Metis.separator` pass 0-based arrays to Metis, and
+throw an `ArgumentError` for `numbering = 1`.
+
+When `options` is passed, the global `Metis.options` array isn't used. Without it, options set
+in the global array are still used, but setting them there is deprecated in favour of
+`Metis.Options`.
+"""
+struct Options
+    values::Vector{Cint}
+    function Options(; kwargs...)
+        values = fill(Cint(-1), METIS_NOPTIONS)
+        for (name, value) in kwargs
+            values[option_index(name)] = value
+        end
+        return new(values)
+    end
+end
+
+# The options that can be set with `Options`: all options that the Metis library reads. Not
+# included are the options after `numbering` (`help`, `tpwgts`, `ncommon`, `nooutput`,
+# `balance`, `gtype` and `ubvec`), which are only used by the Metis command-line programs.
+const OPTION_NAMES = (
+    :ptype, :objtype, :ctype, :iptype, :rtype, :dbglvl, :niter, :ncuts, :seed,
+    :no2hop, :minconn, :contig, :compress, :ccorder, :pfactor, :nseps, :ufactor, :numbering,
+)
+
+# The index in the options array of each option in `OPTION_NAMES`
+const OPTION_INDICES = map(OPTION_NAMES) do name
+    return Int(getfield(LibMetis, Symbol("METIS_OPTION_", uppercase(String(name))))) + 1
+end
+
+function option_index(name::Symbol)
+    i = findfirst(==(name), OPTION_NAMES)
+    if i === nothing
+        throw(ArgumentError("unknown Metis option `$(name)`"))
+    end
+    return OPTION_INDICES[i]
+end
+
+# Pass the options array when an `Options` is passed to the C API
+Base.cconvert(::Type{Ptr{idx_t}}, opts::Options) = opts.values
+
+# Setting options in the global `options` array, instead of with `Options`, is deprecated.
+# The array is still used, but changing an option from its default gives a deprecation
+# warning. Numbering is 1-based by default since the array is meant for the C API.
+function check_global_options()
+    numbering = option_index(:numbering)
+    for (i, value) in pairs(options)
+        if value != (i == numbering ? Cint(1) : Cint(-1))
+            Base.depwarn(
+                "setting options in the global `Metis.options` array is deprecated, use the " *
+                "`options` keyword argument with `Metis.Options` instead, e.g. " *
+                "`Metis.partition(G, n; options = Metis.Options(seed = 42))`",
+                :check_global_options,
+            )
+            return
+        end
+    end
+    return
+end
+
+# Return the options for a call to Metis with the arrays from `zero_based_adjacency`, i.e. with
+# 0-based numbering. Without the `options` keyword argument (`nothing`) this is a copy of the
+# global options, so that code that sets options there keeps working (deprecated, see
+# `check_global_options`). This is the only use of the global array in the Julia interface, and
+# it should be removed in the next breaking release. Call it while holding `metis_lock`.
+function metis_options(::Nothing)
+    o = copy(options)
+    o[option_index(:numbering)] = 0
+    return o
+end
+
+# Metis only reads the options array in the functions used by the Julia interface, so `opts`
+# is passed as is. The Julia interface passes 0-based arrays, so 1-based numbering (which is
+# for using `Options` with the C API) is an error.
+function metis_options(opts::Options)
+    if !(opts.values[option_index(:numbering)] in (-1, 0))
+        throw(ArgumentError(
+            "`numbering = 1` is only for the C API, `Metis.partition`, `Metis.permutation` " *
+            "and `Metis.separator` pass 0-based arrays to Metis"
+        ))
+    end
     return opts
 end
 
@@ -247,19 +363,21 @@ function zero_based_adjacency(G::Graph)
 end
 
 """
-    perm, iperm = Metis.permutation(G)
+    perm, iperm = Metis.permutation(G; options = nothing)
 
 Compute the fill reducing permutation `perm`
 and its inverse `iperm` of `G`.
+See `Metis.Options` for the `options` keyword argument.
 """
-permutation(G) = permutation(graph(G))
+permutation(G; options::Union{Options, Nothing} = nothing) = permutation(graph(G); options)
 
-function permutation(G::Graph)
+function permutation(G::Graph; options::Union{Options, Nothing} = nothing)
     perm = Vector{idx_t}(undef, G.nvtxs)
     iperm = Vector{idx_t}(undef, G.nvtxs)
+    options === nothing && check_global_options()
     xadj, adjncy = zero_based_adjacency(G)
     @lock metis_lock begin
-        @check METIS_NodeND(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, metis_options(), perm, iperm)
+        @check METIS_NodeND(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, metis_options(options), perm, iperm)
     end
     perm .+= idx_t(1)
     iperm .+= idx_t(1)
@@ -267,7 +385,7 @@ function permutation(G::Graph)
 end
 
 """
-    Metis.partition(G, n; alg = :KWAY)
+    Metis.partition(G, n; alg = :KWAY, options = nothing)
 
 Partition the graph `G` in `n` parts.
 The partition algorithm is defined by the `alg` keyword:
@@ -276,10 +394,12 @@ The partition algorithm is defined by the `alg` keyword:
 
 An `ArgumentError` is thrown for any other `alg`, if `n` is less than 1, and if `n` is larger
 than the number of vertices.
+See `Metis.Options` for the `options` keyword argument.
 """
-partition(G, nparts; alg = :KWAY) = partition(graph(G), nparts, alg = alg)
+partition(G, nparts; alg = :KWAY, options::Union{Options, Nothing} = nothing) =
+    partition(graph(G), nparts; alg, options)
 
-function partition(G::Graph, nparts::Integer; alg = :KWAY)
+function partition(G::Graph, nparts::Integer; alg = :KWAY, options::Union{Options, Nothing} = nothing)
     alg === :RECURSIVE || alg === :KWAY || throw(ArgumentError("unknown algorithm $(repr(alg))"))
     nparts < 1 && throw(ArgumentError("the number of parts must be at least 1, got $(nparts)"))
     if nparts > 1 && nparts > G.nvtxs
@@ -288,14 +408,15 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
     part = Vector{idx_t}(undef, G.nvtxs)
     nparts == 1 && return fill!(part, 1) # https://github.com/JuliaSparse/Metis.jl/issues/49
     edgecut = fill(idx_t(0), 1)
+    options === nothing && check_global_options()
     xadj, adjncy = zero_based_adjacency(G)
     @lock metis_lock begin
         if alg === :RECURSIVE
             @check METIS_PartGraphRecursive(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), xadj, adjncy, G.vwgt, C_NULL, G.adjwgt,
-                                            Ref{idx_t}(nparts), C_NULL, C_NULL, metis_options(), edgecut, part)
+                                            Ref{idx_t}(nparts), C_NULL, C_NULL, metis_options(options), edgecut, part)
         else
             @check METIS_PartGraphKway(Ref{idx_t}(G.nvtxs), Ref{idx_t}(1), xadj, adjncy, G.vwgt, C_NULL, G.adjwgt,
-                                       Ref{idx_t}(nparts), C_NULL, C_NULL, metis_options(), edgecut, part)
+                                       Ref{idx_t}(nparts), C_NULL, C_NULL, metis_options(options), edgecut, part)
         end
     end
     part .+= idx_t(1)
@@ -303,22 +424,24 @@ function partition(G::Graph, nparts::Integer; alg = :KWAY)
 end
 
 """
-    Metis.separator(G)
+    Metis.separator(G; options = nothing)
 
 Compute a vertex separator of the graph `G`.
+See `Metis.Options` for the `options` keyword argument.
 
 Return a vector with one label per vertex: `1` and `2` for the two parts and `3` for the
 separator. No edge joins part `1` and part `2`. A part or the separator can be empty, in
 which case its label is missing from the result.
 """
-separator(G) = separator(graph(G))
+separator(G; options::Union{Options, Nothing} = nothing) = separator(graph(G); options)
 
-function separator(G::Graph)
+function separator(G::Graph; options::Union{Options, Nothing} = nothing)
     part = Vector{idx_t}(undef, G.nvtxs)
     sepsize = fill(idx_t(0), 1)
+    options === nothing && check_global_options()
     xadj, adjncy = zero_based_adjacency(G)
     @lock metis_lock begin
-        @check METIS_ComputeVertexSeparator(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, metis_options(), sepsize, part)
+        @check METIS_ComputeVertexSeparator(Ref{idx_t}(G.nvtxs), xadj, adjncy, G.vwgt, metis_options(options), sepsize, part)
     end
     part .+= idx_t(1)
     return part

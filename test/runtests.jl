@@ -341,7 +341,7 @@ end
     part = Metis.partition(g, 8)
     Metis.options[numbering] = 0
     try
-        @test Metis.partition(g, 8) == part
+        @test (@test_deprecated Metis.partition(g, 8)) == part
     finally
         Metis.options[numbering] = 1
     end
@@ -355,7 +355,7 @@ end
     seed = Int(Metis.METIS_OPTION_SEED) + 1
     Metis.options[seed] = 1234
     try
-        @test isperm(Metis.permutation(g)[1])
+        @test isperm((@test_deprecated Metis.permutation(g))[1])
     finally
         Metis.options[seed] = -1
     end
@@ -366,6 +366,90 @@ end
     @test all(in(1:2), Metis.partition(edgeless, 2; alg = :RECURSIVE))
     @test isperm(Metis.permutation(edgeless)[1])
     @test all(in(1:3), Metis.separator(edgeless))
+end
+
+@testset "Metis.Options" begin
+    S = Graphs.adjacency_matrix(Graphs.grid([30, 30]))
+    # Default options give the default results
+    @test Metis.partition(S, 4; options = Metis.Options()) == Metis.partition(S, 4)
+    @test Metis.partition(S, 4; alg = :RECURSIVE, options = Metis.Options()) ==
+        Metis.partition(S, 4; alg = :RECURSIVE)
+    @test Metis.permutation(S; options = Metis.Options()) == Metis.permutation(S)
+    @test Metis.separator(S; options = Metis.Options()) == Metis.separator(S)
+    # Setting an option is the same as setting it in the global options array, which it overrides
+    seed = Int(Metis.METIS_OPTION_SEED) + 1
+    ufactor = Int(Metis.METIS_OPTION_UFACTOR) + 1
+    opts = Metis.Options(seed = 7, ufactor = 50)
+    defaults = (Metis.partition(S, 4), Metis.permutation(S))
+    withopts = (
+        Metis.partition(S, 4; options = opts), Metis.partition(S, 4; alg = :RECURSIVE, options = opts),
+        Metis.permutation(S; options = opts), Metis.separator(S; options = opts),
+    )
+    # (setting options in the global array is deprecated, but still works)
+    Metis.options[seed] = 7
+    Metis.options[ufactor] = 50
+    try
+        @test withopts == (
+            (@test_deprecated Metis.partition(S, 4)),
+            (@test_deprecated Metis.partition(S, 4; alg = :RECURSIVE)),
+            (@test_deprecated Metis.permutation(S)),
+            (@test_deprecated Metis.separator(S)),
+        )
+        # With the options keyword the global options aren't used, and don't give a warning
+        @test (@test_logs Metis.partition(S, 4; options = opts)) == withopts[1]
+        @test (@test_logs Metis.partition(S, 4; options = Metis.Options())) == defaults[1]
+        @test (@test_logs Metis.permutation(S; options = Metis.Options())) == defaults[2]
+        @test defaults != (withopts[1], withopts[3])
+    finally
+        Metis.options[seed] = -1
+        Metis.options[ufactor] = -1
+    end
+    # The default global options don't give a deprecation warning
+    @test_logs Metis.partition(S, 4)
+    @test Metis.partition(S, 4; options = Metis.Options(seed = 1)) !=
+        Metis.partition(S, 4; options = Metis.Options(seed = 2))
+    # The options array has the Metis layout and default (0-based) numbering, and the global
+    # options aren't modified
+    opts = Metis.Options(seed = 7, contig = true)
+    values = opts.values
+    @test length(values) == Metis.METIS_NOPTIONS
+    @test values[seed] == 7
+    @test values[Int(Metis.METIS_OPTION_CONTIG) + 1] == 1
+    @test count(!=(-1), values) == 2
+    @test Metis.options[Int(Metis.METIS_OPTION_NUMBERING) + 1] == 1
+    @test count(!=(-1), Metis.options) == 1
+    # Values can be constants and Bools
+    opts = Metis.Options(objtype = Metis.METIS_OBJTYPE_VOL, contig = true)
+    @test opts.values[Int(Metis.METIS_OPTION_OBJTYPE) + 1] == 1
+    @test opts.values[Int(Metis.METIS_OPTION_CONTIG) + 1] == 1
+    @test length(Metis.partition(S, 4; options = opts)) == 900
+    # Options can be passed to the C API, with 0-based arrays by default
+    opts = Metis.Options(seed = 7, ufactor = 50)
+    g = Metis.graph(S)
+    perm, iperm = (Vector{Metis.idx_t}(undef, g.nvtxs) for _ in 1:2)
+    @test Metis.METIS_NodeND(Ref{Metis.idx_t}(g.nvtxs), g.xadj .- Metis.idx_t(1), g.adjncy .- Metis.idx_t(1),
+                             C_NULL, opts, perm, iperm) == Metis.METIS_OK
+    @test (perm .+ 1, iperm .+ 1) == Metis.permutation(S; options = opts)
+    # and with 1-based arrays with numbering = 1, which the Julia interface rejects
+    opts1 = Metis.Options(seed = 7, ufactor = 50, numbering = 1)
+    @test Metis.METIS_NodeND(Ref{Metis.idx_t}(g.nvtxs), g.xadj, g.adjncy, C_NULL, opts1, perm, iperm) == Metis.METIS_OK
+    @test (perm, iperm) == Metis.permutation(S; options = opts)
+    @test_throws ArgumentError Metis.partition(S, 4; options = opts1)
+    @test_throws ArgumentError Metis.permutation(S; options = opts1)
+    @test_throws ArgumentError Metis.separator(S; options = opts1)
+    @test length(Metis.partition(S, 4; options = Metis.Options(numbering = 0))) == 900
+    # Unknown options and invalid values throw
+    @test_throws ArgumentError Metis.Options(sead = 1)
+    @test_throws ArgumentError Metis.Options(help = 1)
+    @test_throws Metis.LibMetis.MetisError Metis.partition(S, 4; options = Metis.Options(ufactor = 0))
+    @test_throws Metis.LibMetis.MetisError Metis.permutation(S; options = Metis.Options(objtype = 1))
+    # Graph types accept options too
+    G = Graphs.grid([30, 30])
+    W = SimpleWeightedGraphs.SimpleWeightedGraph(G)
+    opts = Metis.Options(seed = 3)
+    @test Metis.partition(G, 4; options = opts) == Metis.partition(S, 4; options = opts)
+    @test Metis.permutation(W; options = opts) == Metis.permutation(S; options = opts)
+    @test Metis.separator(W; options = opts) == Metis.separator(S; options = opts)
 end
 
 @testset "Metis.separator" begin

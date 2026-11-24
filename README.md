@@ -75,6 +75,17 @@ results in a sparser factorization:
 |:----------------------------- |:--------------------------------------- |
 | `chol(S)` (16% stored values) | `chol(S[perm,perm])` (6% stored values) |
 
+## Options
+Metis options can be passed to `Metis.partition`, `Metis.permutation` and `Metis.separator`
+with the `options` keyword argument and `Metis.Options`, e.g. to use a different random seed
+and a larger load imbalance:
+```julia
+Metis.partition(g, 4; options = Metis.Options(seed = 42, ufactor = 100))
+```
+See the docstring of `Metis.Options` for the available options, and the
+[Metis manual][metis-manual-url] for their meaning. Setting options in the global
+`Metis.options` array instead is deprecated.
+
 ## Calling from several threads
 The Metis C library has global state, so `Metis.partition`, `Metis.permutation` and
 `Metis.separator` hold a lock while calling it. They can be called from several threads,
